@@ -211,7 +211,7 @@ if st.session_state.run_result:
                     <p style="margin-top: 8px; font-size: 0.9em; color: #8b949e;"><b>Judge Reason:</b> {r['reason']}</p>
                 </div>
                 """,
-                unsafe_allowed_html=True
+                unsafe_allow_html=True
             )
 
 # Promoted Output Display
@@ -228,7 +228,7 @@ if st.session_state.final_output:
                 <div style="white-space: pre-wrap; font-size: 1.1em; color: #ffffff;">{st.session_state.final_output['final_output']}</div>
             </div>
             """,
-            unsafe_allowed_html=True
+            unsafe_allow_html=True
         )
 
 # Run History section (Collapsible)
