@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+supabase
+langchain
+langchain-core
+langchain-groq
+langchain-openai
+python-dotenv
