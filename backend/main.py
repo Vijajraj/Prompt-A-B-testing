@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import List, Optional
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -37,7 +37,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 PROMOTE_MODEL = os.getenv("PROMOTE_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 
 # Validate environment setup
@@ -60,12 +60,8 @@ chat_groq = ChatGroq(
     groq_api_key=GROQ_API_KEY
 )
 
-# OpenRouter client for executing the promoted winner
-chat_openrouter = ChatOpenAI(
-    model=PROMOTE_MODEL,
-    base_url="https://openrouter.ai/api/v1",
-    api_key=OPENROUTER_API_KEY
-)
+# Note: OpenRouter client is created dynamically in /api/promote
+# to support model selection from the frontend.
 
 # Request schemas
 class RunRequest(BaseModel):
@@ -151,10 +147,15 @@ def parse_json_safely(text: str):
             
     raise ValueError(f"Could not parse judge response as JSON: {text}")
 
+def _escape_braces(text: str) -> str:
+    """Escape curly braces in user text so LangChain doesn't treat them as template variables."""
+    return text.replace("{", "{{").replace("}", "}}")
+
 async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
     """Runs a single prompt variant against the user query on Groq."""
+    safe_prompt = _escape_braces(prompt_text)
     prompt_template = ChatPromptTemplate.from_messages([
-        ("system", prompt_text),
+        ("system", safe_prompt),
         ("human", "{query}")
     ])
     chain = prompt_template | chat_groq | StrOutputParser()
@@ -269,8 +270,9 @@ async def promote_winner(req: PromoteRequest):
             api_key=OPENROUTER_API_KEY
         )
         
+        safe_prompt = _escape_braces(req.winning_prompt)
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", req.winning_prompt),
+            ("system", safe_prompt),
             ("human", "{query}")
         ])
         chain = prompt_template | chat_model | StrOutputParser()

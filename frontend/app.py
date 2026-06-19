@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+import html
 import os
 from dotenv import load_dotenv, find_dotenv
 
@@ -127,7 +128,7 @@ with st.container():
         selected_model = model_options[selected_model_label]
 
     # Run Button
-    run_clicked = st.button("▶ Run All Prompts", type="primary", use_container_width=True)
+    run_clicked = st.button("▶ Run All Prompts", type="primary")
 
 if run_clicked:
     # Clear previous runs
@@ -196,19 +197,23 @@ if st.session_state.run_result:
         winner_trophy = " 🏆" if is_winner else ""
 
         with cols[idx]:
+            # Escape LLM outputs to prevent XSS / broken HTML rendering
+            safe_response = html.escape(r['response'])
+            safe_prompt = html.escape(r['prompt'])
+            safe_reason = html.escape(r['reason'])
             st.markdown(
                 f"""
                 <div class="{card_class}">
                     <h3>Prompt {variant}{winner_trophy}</h3>
-                    <p><b>Prompt:</b> <i>"{r['prompt']}"</i></p>
+                    <p><b>Prompt:</b> <i>"{safe_prompt}"</i></p>
                     <hr style="border: 0.5px solid #30363d; margin: 8px 0;"/>
                     <p><b>Response:</b></p>
-                    <p>{r['response']}</p>
+                    <p>{safe_response}</p>
                     <hr style="border: 0.5px solid #30363d; margin: 8px 0;"/>
                     <div>
                         <span class="{badge_class}">Score: {r['score']}/10</span>
                     </div>
-                    <p style="margin-top: 8px; font-size: 0.9em; color: #8b949e;"><b>Judge Reason:</b> {r['reason']}</p>
+                    <p style="margin-top: 8px; font-size: 0.9em; color: #8b949e;"><b>Judge Reason:</b> {safe_reason}</p>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -218,14 +223,16 @@ if st.session_state.run_result:
 if st.session_state.final_output:
     st.markdown("---")
     winner = st.session_state.run_result["winner"]
-    st.subheader(f"🏆 Winner: Prompt {winner} → sent to Llama 3.3 70B via OpenRouter")
+    actual_model = st.session_state.final_output['model']
+    st.subheader(f"🏆 Winner: Prompt {winner} → sent to {actual_model}")
     
     with st.container():
+        safe_final = html.escape(st.session_state.final_output['final_output'])
         st.markdown(
             f"""
             <div style="background-color: #161b22; border: 1px solid #ffd700; border-radius: 8px; padding: 20px;">
-                <p style="color: #ffd700; font-size: 0.85em; margin-bottom: 10px;">Model: {st.session_state.final_output['model']}</p>
-                <div style="white-space: pre-wrap; font-size: 1.1em; color: #ffffff;">{st.session_state.final_output['final_output']}</div>
+                <p style="color: #ffd700; font-size: 0.85em; margin-bottom: 10px;">Model: {html.escape(actual_model)}</p>
+                <div style="white-space: pre-wrap; font-size: 1.1em; color: #ffffff;">{safe_final}</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -236,32 +243,43 @@ st.markdown("---")
 with st.expander("📊 Run History", expanded=False):
     st.markdown("Recent runs loaded directly from Supabase:")
     
-    # Load history on demand when expander is opened
-    try:
-        history_res = requests.get(f"{BACKEND_URL}/api/logs")
-        if history_res.status_code == 200:
-            logs = history_res.json()
-            if logs:
-                df = pd.DataFrame(logs)
-                # Select and reorder columns for display
-                df_display = df[[
-                    "created_at", "query", "prompt_a", "prompt_b", "prompt_c", 
-                    "score_a", "score_b", "score_c", "winner", "final_output"
-                ]].copy()
-                
-                # Format timestamps
-                df_display["created_at"] = pd.to_datetime(df_display["created_at"]).dt.strftime('%Y-%m-%d %H:%M:%S')
-                
-                # Rename columns
-                df_display.columns = [
-                    "Timestamp", "Query", "Prompt A", "Prompt B", "Prompt C", 
-                    "Score A", "Score B", "Score C", "Winner", "Final Llama Output"
-                ]
-                
-                st.dataframe(df_display, use_container_width=True)
+    if st.button("🔄 Refresh History"):
+        st.session_state["refresh_history"] = True
+    
+    if st.session_state.get("refresh_history", False):
+        try:
+            history_res = requests.get(f"{BACKEND_URL}/api/logs", timeout=10)
+            if history_res.status_code == 200:
+                logs = history_res.json()
+                if logs:
+                    df = pd.DataFrame(logs)
+                    # Select and reorder columns for display
+                    display_cols = [
+                        "created_at", "query", "prompt_a", "prompt_b", "prompt_c",
+                        "score_a", "score_b", "score_c", "winner", "final_output"
+                    ]
+                    available_cols = [c for c in display_cols if c in df.columns]
+                    df_display = df[available_cols].copy()
+                    
+                    # Format timestamps
+                    if "created_at" in df_display.columns:
+                        df_display["created_at"] = pd.to_datetime(df_display["created_at"]).dt.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Rename columns
+                    rename_map = {
+                        "created_at": "Timestamp", "query": "Query",
+                        "prompt_a": "Prompt A", "prompt_b": "Prompt B", "prompt_c": "Prompt C",
+                        "score_a": "Score A", "score_b": "Score B", "score_c": "Score C",
+                        "winner": "Winner", "final_output": "Final Output"
+                    }
+                    df_display.rename(columns=rename_map, inplace=True)
+                    
+                    st.dataframe(df_display, width='stretch')
+                else:
+                    st.info("No run logs found in Supabase yet. Run an experiment above!")
             else:
-                st.info("No run logs found in Supabase yet. Run an experiment above!")
-        else:
-            st.error(f"Failed to load history: {history_res.text}")
-    except Exception as e:
-        st.error(f"Could not connect to backend to fetch logs: {str(e)}")
+                st.error(f"Failed to load history: {history_res.text}")
+        except Exception as e:
+            st.error(f"Could not connect to backend to fetch logs: {str(e)}")
+    else:
+        st.info("Click 'Refresh History' to load past runs from Supabase.")
