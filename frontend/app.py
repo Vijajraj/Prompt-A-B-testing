@@ -62,7 +62,7 @@ st.markdown("""
         font-size: 0.9em;
     }
 </style>
-""", unsafe_allowed_html=True)
+""", unsafe_allow_html=True)
 
 st.title("⚡ Prompt A/B Testing Dashboard")
 st.markdown("Experiment with system prompts, evaluate with an LLM judge, and automatically run the winner on Llama 3.3 70B.")
