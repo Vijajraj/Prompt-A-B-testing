@@ -20,12 +20,12 @@ export default function App() {
   // Pipeline state: 'idle', 'running-ab', 'evaluating', 'promoting', 'complete'
   const [pipelineState, setPipelineState] = useState('idle')
 
-  // Theme state: 'light' or 'dark' (defaulting to dark as per original layout)
+  // Theme state: 'light' or 'dark' (defaulting to light as per user request)
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'dark'
+      return localStorage.getItem('theme') || 'light'
     }
-    return 'dark'
+    return 'light'
   })
 
   useEffect(() => {
