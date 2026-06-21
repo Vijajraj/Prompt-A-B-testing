@@ -1,52 +1,76 @@
+import React from 'react'
+
 export default function ResultsGrid({ results, winner }) {
+  // Renders a custom ASCII-style bar for the score (e.g., [■■■■■□□□□□] 5.0)
+  const renderAsciiScore = (score) => {
+    const totalBlocks = 10
+    const filledBlocks = Math.round(score)
+    const emptyBlocks = totalBlocks - filledBlocks
+    
+    const filledStr = '■'.repeat(filledBlocks)
+    const emptyStr = '□'.repeat(emptyBlocks)
+
+    return (
+      <span className="font-mono text-cyan-400">
+        [{filledStr}{emptyStr}] <span className="font-bold text-gray-100">{score.toFixed(1)}/10</span>
+      </span>
+    )
+  }
+
   return (
-    <div>
-      <h2 className="text-xl font-semibold text-gray-100 mb-4">Results</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 font-mono text-xs text-gray-400 uppercase tracking-widest">
+        <span>// RUN_OUTPUT_STREAM</span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {results.map((r) => {
-          const isWinner = r.variant === winner
+          const isWinner = winner === r.variant
+          const activeBorder = isWinner 
+            ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.15)] bg-gray-950/70' 
+            : 'border-gray-900 bg-gray-950/30'
+
+          const terminalIcon = r.variant === 'A' ? '⌬' : r.variant === 'B' ? '⚙' : '⌬'
+
           return (
             <div
               key={r.variant}
-              className={`rounded-xl p-5 transition-all duration-300 ${
-                isWinner
-                  ? 'border-2 border-amber-400 bg-amber-400/5 shadow-lg shadow-amber-400/10'
-                  : 'border border-gray-700 bg-gray-900'
-              }`}
+              className={`relative overflow-hidden rounded-xl border flex flex-col transition-all duration-300 ${activeBorder}`}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">
-                  Prompt {r.variant} {isWinner && '🏆'}
-                </h3>
-                <span
-                  className={`text-sm font-bold px-3 py-0.5 rounded-full ${
-                    isWinner
-                      ? 'bg-amber-400 text-gray-950'
-                      : 'bg-gray-700 text-gray-300'
-                  }`}
-                >
-                  {r.score}/10
-                </span>
+              {/* Terminal Title Bar */}
+              <div className={`flex items-center justify-between px-4 py-2 border-b font-mono text-[10px] ${
+                isWinner ? 'bg-amber-950/20 border-amber-900/40 text-amber-400' : 'bg-gray-900/50 border-gray-900 text-gray-500'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span>{terminalIcon}</span>
+                  <span className="font-bold tracking-wider">
+                    VAR_{r.variant}.STDOUT
+                  </span>
+                </div>
+                {isWinner ? (
+                  <span className="animate-pulse bg-amber-500/10 border border-amber-500/30 text-amber-400 px-1.5 py-0.5 rounded text-[8px] font-bold">
+                    WINNING_NODE
+                  </span>
+                ) : (
+                  <span className="text-gray-600">STABLE</span>
+                )}
               </div>
 
-              {/* Prompt used */}
-              <p className="text-gray-400 text-sm italic mb-3 border-b border-gray-800 pb-3">
-                "{r.prompt}"
-              </p>
-
-              {/* Response */}
-              <div className="mb-3">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Response</p>
-                <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                  {r.response}
-                </p>
+              {/* Score panel embedded inside Terminal */}
+              <div className="bg-gray-950/90 px-4 py-2.5 border-b border-gray-900/80 flex flex-col gap-1 font-mono text-[10px]">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">JUDGE_SCORE:</span>
+                  {renderAsciiScore(r.score)}
+                </div>
+                <div className="text-gray-400 leading-relaxed mt-1 line-clamp-2 italic text-[9px] bg-gray-900/30 p-1.5 border border-gray-900/50 rounded">
+                  &gt; {r.reason}
+                </div>
               </div>
 
-              {/* Judge reason */}
-              <div className="border-t border-gray-800 pt-3">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Judge Reason</p>
-                <p className="text-gray-400 text-sm">{r.reason}</p>
+              {/* Terminal Screen Body */}
+              <div className="flex-1 p-4 font-mono text-xs text-gray-300 leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto select-text bg-gray-950/80 min-h-[180px]">
+                <div className="text-gray-700 select-none mb-1">// RESPONSE_DATA:</div>
+                {r.response}
               </div>
             </div>
           )

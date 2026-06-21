@@ -1,35 +1,54 @@
+import React from 'react'
+
 export default function WinnerBanner({ winner, finalOutput, promoting }) {
+  const selectedModel = finalOutput?.model || 'meta-llama/llama-3.3-70b-instruct:free'
+  const outputText = finalOutput?.final_output || ''
+
   return (
-    <div className="rounded-xl border border-amber-400/50 bg-gradient-to-br from-amber-400/5 to-gray-900 p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-2xl">🏆</span>
-        <h2 className="text-xl font-semibold text-amber-400">
-          Winner: Prompt {winner}
-        </h2>
+    <div className="border border-gray-800 rounded-xl overflow-hidden bg-gray-950 font-mono text-xs shadow-xl relative">
+      {/* Glow Effect when complete */}
+      {!promoting && finalOutput && (
+        <div className="absolute inset-0 bg-cyan-500/5 pointer-events-none transition-all duration-300" />
+      )}
+
+      {/* Title Bar */}
+      <div className="flex items-center justify-between bg-gray-900 px-4 py-2 border-b border-gray-800/80">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${promoting ? 'bg-cyan-500 animate-ping' : 'bg-emerald-500'}`} />
+          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+            PROMOTED_OUTPUT_STREAM // {selectedModel}
+          </span>
+        </div>
+        <span className="text-[9px] text-gray-600">STDOUT // STREAM</span>
       </div>
 
-      {promoting && !finalOutput && (
-        <div className="flex items-center gap-3 text-gray-400">
-          <svg className="animate-spin h-5 w-5 text-amber-400" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-          </svg>
-          <span>Sending winner to LLM via OpenRouter...</span>
-        </div>
-      )}
-
-      {finalOutput && (
-        <div>
-          <p className="text-amber-400/70 text-xs font-medium uppercase tracking-wide mb-2">
-            Final Output — {finalOutput.model}
-          </p>
-          <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
-            <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap break-words">
-              {finalOutput.final_output}
-            </p>
+      {/* Screen Body */}
+      <div className="p-5 min-h-[160px] flex flex-col justify-between select-text bg-gray-950/90 leading-relaxed text-gray-200">
+        {promoting ? (
+          <div className="space-y-2 text-gray-500 select-none">
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-500 animate-pulse">[INIT]</span>
+              <span>Connecting to OpenRouter gate...</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-500 animate-pulse">[EXEC]</span>
+              <span>Routing winning variant prompt (Variant {winner}) to global LLM...</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-500 animate-pulse">[LOAD]</span>
+              <span className="animate-pulse">Awaiting inference response block...</span>
+            </div>
           </div>
-        </div>
-      )}
+        ) : outputText ? (
+          <div>
+            <div className="text-gray-600 select-none mb-2">// INFERENCE_RESULT_START</div>
+            <p className="whitespace-pre-wrap">{outputText}</p>
+            <div className="text-gray-600 select-none mt-4">// INFERENCE_RESULT_END</div>
+          </div>
+        ) : (
+          <p className="text-gray-700 italic select-none">// Pipeline must be run to initiate winner promotion.</p>
+        )}
+      </div>
     </div>
   )
 }
