@@ -37,25 +37,25 @@ export default function PipelineVisualizer({ currentState, winner }) {
     switch (state) {
       case 'done':
         return {
-          ring: 'border-emerald-500/30 bg-emerald-950/10 text-emerald-400',
-          dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]',
-          label: 'text-gray-200',
-          desc: 'text-gray-500',
+          ring: 'border-emerald-500/20 bg-emerald-50/50 text-emerald-600 dark:border-emerald-500/30 dark:bg-emerald-950/10 dark:text-emerald-400',
+          dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]',
+          label: 'text-zinc-800 dark:text-gray-200',
+          desc: 'text-zinc-400 dark:text-zinc-500',
         }
       case 'active':
         return {
-          ring: 'border-indigo-500 bg-indigo-950/20 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.25)] animate-pulse',
+          ring: 'border-indigo-500 bg-indigo-50/50 text-indigo-600 dark:border-indigo-500 dark:bg-indigo-950/20 dark:text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] dark:shadow-[0_0_15px_rgba(99,102,241,0.25)] animate-pulse',
           dot: 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] animate-ping',
-          label: 'text-indigo-400 font-semibold',
-          desc: 'text-indigo-500/70',
+          label: 'text-indigo-600 dark:text-indigo-400 font-semibold',
+          desc: 'text-indigo-500/60 dark:text-indigo-500/70',
         }
       case 'waiting':
       default:
         return {
-          ring: 'border-zinc-800 bg-zinc-900/30 text-zinc-600',
-          dot: 'bg-zinc-800',
-          label: 'text-zinc-600',
-          desc: 'text-zinc-700',
+          ring: 'border-zinc-200 bg-zinc-50 text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-600',
+          dot: 'bg-zinc-300 dark:bg-zinc-800',
+          label: 'text-zinc-400 dark:text-zinc-600',
+          desc: 'text-zinc-300 dark:text-zinc-700',
         }
     }
   }
@@ -78,14 +78,14 @@ export default function PipelineVisualizer({ currentState, winner }) {
   }
 
   return (
-    <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+    <div className="bg-white border border-zinc-200 dark:bg-zinc-950/40 dark:backdrop-blur-md dark:border-zinc-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-colors duration-300">
       {/* Dynamic Background Glow */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/[0.02] dark:bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Header Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/60 pb-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-150 dark:border-zinc-800/60 pb-4 mb-6">
         <div>
-          <h2 className="text-sm font-bold tracking-tight uppercase text-zinc-300 font-sans">
+          <h2 className="text-sm font-bold tracking-tight uppercase text-zinc-800 dark:text-zinc-300 font-sans">
             Execution Flow Pipeline
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
@@ -93,7 +93,7 @@ export default function PipelineVisualizer({ currentState, winner }) {
           </p>
         </div>
         {winner && currentState === 'complete' && (
-          <span className="text-[10px] bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider self-start sm:self-auto">
+          <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400 px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider self-start sm:self-auto">
             🏆 Winner: Variant {winner}
           </span>
         )}
@@ -102,7 +102,7 @@ export default function PipelineVisualizer({ currentState, winner }) {
       {/* Pipeline Steps Row */}
       <div className="relative flex flex-col md:flex-row items-center justify-between gap-8 md:gap-4 py-4">
         {/* Connection line for large screens */}
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-zinc-800/50 -translate-y-6 hidden md:block z-0" />
+        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-zinc-200 dark:bg-zinc-800/50 -translate-y-6 hidden md:block z-0" />
         
         {/* Active glowing progress fill line */}
         {currentState !== 'idle' && (
