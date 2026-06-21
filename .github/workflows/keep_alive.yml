@@ -1,0 +1,23 @@
+name: Keep Render Awake
+
+on:
+  schedule:
+    # Runs every 14 minutes
+    - cron: '*/14 * * * *'
+  # Allows manual triggering from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render backend
+        # Using a Repository Variable (vars.RENDER_URL) is highly recommended.
+        # Otherwise, replace the URL below with your actual Render backend URL:
+        run: |
+          URL="${{ vars.RENDER_URL }}"
+          if [ -z "$URL" ]; then
+            URL="https://YOUR_RENDER_APP_NAME.onrender.com/"
+          fi
+          echo "Pinging $URL"
+          curl -I -s -o /dev/null -w "%{http_code}" "$URL"
