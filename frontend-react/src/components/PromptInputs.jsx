@@ -25,126 +25,109 @@ export default function PromptInputs({ onRun, loading, promoting }) {
 
   const isDisabled = loading || promoting
 
-  // Component to simulate an IDE text editor with line numbers
-  const IdeTextarea = ({ value, onChange, label, filename, rows = 3 }) => {
-    const lines = value.split('\n')
-    // Always show at least `rows` line numbers
-    const totalLines = Math.max(lines.length, rows)
-    const lineNumbers = Array.from({ length: totalLines }, (_, i) => i + 1)
-
+  // Modern SaaS Editor Box
+  const EditorBox = ({ value, onChange, label, filename, rows = 3 }) => {
     return (
-      <div className="border border-gray-800 rounded-lg overflow-hidden bg-gray-950 font-mono text-xs shadow-md">
-        {/* IDE Tab Header */}
-        <div className="flex items-center justify-between bg-gray-900 px-4 py-2 border-b border-gray-800/80">
+      <div className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-950/40 backdrop-blur-md shadow-lg transition-all duration-300 hover:border-zinc-700/60">
+        {/* Editor Tab Header */}
+        <div className="flex items-center justify-between bg-zinc-900/60 px-4 py-2.5 border-b border-zinc-800/60 select-none">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
-            <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider ml-2">
+            <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-[11px] font-medium text-zinc-400 font-sans tracking-wide">
               {filename}
             </span>
           </div>
-          <span className="text-[9px] text-gray-600">UTF-8 // LF</span>
+          <span className="text-[9px] text-zinc-600 uppercase tracking-widest font-mono">system</span>
         </div>
         
         {/* Editor Body */}
-        <div className="flex relative min-h-[80px]">
-          {/* Line Numbers */}
-          <div className="bg-gray-900/50 text-gray-600 text-right select-none pr-3 pl-2 py-3 border-r border-gray-900 w-10 shrink-0 leading-relaxed font-mono">
-            {lineNumbers.map((num) => (
-              <div key={num}>{num}</div>
-            ))}
-          </div>
-          
-          {/* Actual Textarea */}
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            rows={rows}
-            disabled={isDisabled}
-            className="w-full bg-transparent resize-none focus:outline-none px-4 py-3 leading-relaxed text-gray-100 placeholder-gray-700 font-mono"
-            placeholder={`Enter override config for ${label}...`}
-          />
-        </div>
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={rows}
+          disabled={isDisabled}
+          className="w-full bg-transparent resize-none focus:outline-none px-4 py-3.5 text-sm leading-relaxed text-zinc-200 placeholder-zinc-700 focus:bg-zinc-950/20 transition-all font-sans"
+          placeholder={`Enter configuration for ${label}...`}
+        />
       </div>
     )
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* 3 Prompts side by side on large, or stacked on small */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <IdeTextarea
+      {/* 3 Prompts side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <EditorBox
           value={promptA}
           onChange={setPromptA}
           label="Prompt A"
-          filename="system_prompt_a.cfg"
+          filename="variant_a.prompt"
           rows={4}
         />
-        <IdeTextarea
+        <EditorBox
           value={promptB}
           onChange={setPromptB}
           label="Prompt B"
-          filename="system_prompt_b.cfg"
+          filename="variant_b.prompt"
           rows={4}
         />
-        <IdeTextarea
+        <EditorBox
           value={promptC}
           onChange={setPromptC}
           label="Prompt C"
-          filename="system_prompt_c.cfg"
+          filename="variant_c.prompt"
           rows={4}
         />
       </div>
 
       {/* Query input panel */}
-      <IdeTextarea
+      <EditorBox
         value={query}
         onChange={setQuery}
         label="User Query"
-        filename="input_query.md"
-        rows={5}
+        filename="user_message.query"
+        rows={4}
       />
 
       {/* Controls: Model Select & Run Button */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-gray-950/20 border border-gray-900 p-4 rounded-xl">
-        <div className="flex flex-col gap-1.5 font-mono text-[10px] uppercase tracking-wider text-gray-500">
-          <span>MODEL_PARAMETER</span>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900/20 border border-zinc-800/80 p-4 rounded-2xl">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <label className="text-xs text-zinc-400 font-medium whitespace-nowrap">Target Model:</label>
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
             disabled={isDisabled}
-            className="w-full sm:w-72 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-xs text-gray-100 font-mono focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500 transition-colors uppercase cursor-pointer"
+            className="w-full sm:w-64 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
           >
             {MODEL_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value} className="bg-gray-950 text-gray-300">
+              <option key={opt.value} value={opt.value} className="bg-zinc-950 text-zinc-300">
                 {opt.label}
               </option>
             ))}
           </select>
         </div>
 
-        <div className="flex-1 flex flex-col justify-end sm:pt-4">
-          <button
-            type="submit"
-            disabled={isDisabled}
-            className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-900 disabled:text-gray-600 text-gray-950 font-mono uppercase tracking-widest font-bold py-3 px-6 rounded-lg transition-all duration-200 cursor-pointer disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                // RUNNING_PARALLEL_RUNS
-              </span>
-            ) : promoting ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                // ROUTING_PROMOTION
-              </span>
-            ) : (
-              '▶ RUN_PIPELINE'
-            )}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={isDisabled}
+          className="w-full sm:w-48 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 disabled:from-zinc-900 disabled:to-zinc-900 disabled:text-zinc-600 text-white font-semibold text-xs uppercase tracking-wider py-2.5 px-6 rounded-xl transition-all duration-200 cursor-pointer disabled:cursor-not-allowed shadow-md hover:shadow-[0_0_20px_rgba(99,102,241,0.25)]"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              Running Test
+            </span>
+          ) : promoting ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              Promoting
+            </span>
+          ) : (
+            'Run A/B Test'
+          )}
+        </button>
       </div>
     </form>
   )

@@ -93,43 +93,54 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07080d] text-gray-100 relative overflow-x-hidden font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Visual Design Grid Overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f1118_1px,transparent_1px),linear-gradient(to_bottom,#0f1118_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none opacity-20" />
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 relative overflow-x-hidden font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+      {/* Sleek Design Grid Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:5rem_5rem] pointer-events-none opacity-[0.04]" />
       
-      {/* Top Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[300px] bg-gradient-to-b from-cyan-950/20 via-purple-950/5 to-transparent rounded-full blur-[100px] pointer-events-none" />
+      {/* Background Soft Purple/Blue Radial Glow */}
+      <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-[120px] pointer-events-none" />
 
       {/* Header */}
-      <header className="border-b border-gray-900 bg-gray-950/30 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight font-mono flex items-center gap-2">
-              <span className="text-cyan-500 select-none">⌬</span> PROMPT_STUDIO.IO
-            </h1>
-            <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase mt-0.5">
-              LLM A/B TESTING & AUTO-PROMOTION WORKBENCH
-            </p>
+      <header className="border-b border-zinc-800/80 bg-zinc-950/20 backdrop-blur-md sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Elegant SVG Logo */}
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-950/25">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-sm font-bold tracking-tight font-sans text-zinc-100">
+                Prompt Studio
+              </h1>
+              <p className="text-[9px] text-zinc-500 font-sans tracking-wider uppercase mt-0.5">
+                A/B TESTING & AUTO-PROMOTION WORKBENCH
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-3 font-mono text-[10px]">
-            <span className="text-gray-600">API_STATUS:</span>
-            <span className="flex items-center gap-1.5 text-emerald-400">
+          
+          <div className="flex items-center gap-3 font-sans text-[10px]">
+            <span className="text-zinc-500">API Gateway:</span>
+            <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              ONLINE
+              ACTIVE
             </span>
           </div>
         </div>
       </header>
 
       {/* Main Workspace Layout */}
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6 relative z-10">
         {/* Error notification */}
         {error && (
-          <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-4 text-red-400 font-mono text-xs shadow-lg flex items-start gap-3">
-            <span className="text-red-500 font-bold select-none">[FATAL_ERROR]</span>
+          <div className="bg-red-950/20 border border-red-900/50 rounded-2xl p-4 text-red-400 text-xs font-sans shadow-lg flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
             <div className="flex-1">
-              <p className="font-bold">SYSTEM RUNTIME EXCEPTION</p>
-              <p className="mt-1 opacity-80 break-all">{error}</p>
+              <p className="font-bold">System Runtime Exception</p>
+              <p className="mt-0.5 opacity-80 break-all">{error}</p>
             </div>
           </div>
         )}
@@ -137,15 +148,15 @@ export default function App() {
         {/* Dynamic Pipeline Flow Indicator */}
         <PipelineVisualizer currentState={pipelineState} winner={winner} />
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* Left Column: Input Workbench (7cols on xl) */}
-          <div className="xl:col-span-7 space-y-6">
-            <div className="border border-gray-900 bg-gray-950/30 rounded-xl p-5 space-y-4">
-              <div className="border-b border-gray-900 pb-3">
-                <h2 className="text-xs font-bold font-mono tracking-widest uppercase text-gray-400">
-                  // EDITOR_WORKBENCH
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Input Workbench (7cols on lg) */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 space-y-4 shadow-xl">
+              <div className="border-b border-zinc-800/60 pb-3">
+                <h2 className="text-xs font-bold font-sans tracking-widest uppercase text-zinc-400">
+                  Prompt Configuration
                 </h2>
-                <p className="text-[10px] text-gray-600 font-mono mt-0.5 uppercase">
+                <p className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">
                   Configure prompt overrides and query input
                 </p>
               </div>
@@ -153,8 +164,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Column: Results & Promoted Output (5cols on xl) */}
-          <div className="xl:col-span-5 space-y-6">
+          {/* Right Column: Results & Promoted Output (5cols on lg) */}
+          <div className="lg:col-span-5 space-y-6">
             {/* Winner output stream console */}
             {(winner || promoting) && (
               <WinnerBanner
@@ -171,10 +182,12 @@ export default function App() {
             
             {/* If no runs yet, show empty trace workspace */}
             {!results && !promoting && (
-              <div className="h-full min-h-[300px] border border-dashed border-gray-900 rounded-xl flex flex-col items-center justify-center text-center p-6 text-gray-600 font-mono text-xs">
-                <span>⌬</span>
-                <span className="mt-2">// RUNTIME_CONSOLE_AWAITING_INPUT</span>
-                <span className="text-[10px] mt-1 text-gray-700">Submit the workspace form to trigger parallel A/B streams.</span>
+              <div className="h-full min-h-[300px] border border-dashed border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center text-center p-6 text-zinc-500 font-sans text-xs">
+                <svg className="w-8 h-8 text-zinc-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                <span className="font-semibold text-zinc-400">Waiting for Execution</span>
+                <span className="text-[10px] mt-1 text-zinc-600">Submit the prompt workbench on the left to initiate testing.</span>
               </div>
             )}
           </div>

@@ -39,79 +39,82 @@ export default function RunHistory({ apiUrl }) {
   }
 
   return (
-    <div className="border border-gray-900 rounded-xl overflow-hidden bg-gray-950/20 font-mono text-xs">
-      {/* DB Header Bar */}
+    <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/80 rounded-2xl overflow-hidden shadow-xl transition-all duration-300">
+      {/* Header bar */}
       <button
         onClick={handleToggle}
-        className="w-full flex items-center justify-between bg-gray-900/50 hover:bg-gray-900 px-4 py-3 text-left border-b border-gray-900 transition-colors cursor-pointer"
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-900/20 transition-colors border-b border-zinc-800/60 cursor-pointer"
       >
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-            QUERY_CONSOLE // db_logs_query.sql
-          </span>
+        <div>
+          <h3 className="text-xs font-bold font-sans uppercase tracking-widest text-zinc-400">
+            Experiment Logs Database
+          </h3>
+          <p className="text-[10px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
+            Inspect past A/B test runs and scores
+          </p>
         </div>
-        <span className={`text-[10px] text-gray-500 font-bold transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}>
+        <span className={`text-xs text-zinc-500 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}>
           ▶
         </span>
       </button>
 
       {expanded && (
-        <div className="p-4 space-y-4">
-          <div className="flex items-center gap-2">
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={fetchLogs}
               disabled={loading}
-              className="text-[10px] uppercase font-bold tracking-wider bg-gray-900 hover:bg-gray-800 text-gray-300 border border-gray-800 px-3 py-1.5 rounded transition-all cursor-pointer disabled:cursor-not-allowed hover:border-gray-700 disabled:bg-gray-950 disabled:text-gray-700"
+              className="text-[10px] font-bold uppercase tracking-wider bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-3.5 py-2 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed hover:border-zinc-700 disabled:bg-zinc-950 disabled:text-zinc-700"
             >
-              {loading ? 'RUNNING_QUERY...' : 'EXECUTE SELECT *'}
+              {loading ? 'Refreshing...' : 'Refresh Logs'}
             </button>
-            <span className="text-[9px] text-gray-600">LIMIT 50 // SORT DESC</span>
+            <span className="text-[10px] text-zinc-600">Showing last 50 entries</span>
           </div>
 
           {error && (
-            <div className="bg-red-950/30 border border-red-900/50 text-red-400 p-3 rounded text-[10px]">
-              &gt; ERROR: {error}
+            <div className="bg-red-950/30 border border-red-900/50 text-red-400 p-3.5 rounded-xl text-xs font-sans">
+              Error fetching database logs: {error}
             </div>
           )}
 
           {logs && logs.length === 0 && (
-            <div className="text-center p-6 border border-dashed border-gray-800 text-gray-600 italic">
-              // Table ab_logs is currently empty. Run an experiment above to log data.
+            <div className="text-center p-8 border border-dashed border-zinc-800 rounded-xl text-zinc-600 italic text-xs">
+              No logged records found in the database. Run an A/B test to record logs.
             </div>
           )}
 
           {logs && logs.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-gray-900 bg-gray-950">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-gray-900 text-gray-500 text-[10px] uppercase tracking-wider border-b border-gray-900">
+            <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-950/60">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-zinc-900/60 text-zinc-400 text-[10px] uppercase tracking-wider border-b border-zinc-800/80">
                   <tr>
-                    <th className="px-4 py-2 border-r border-gray-900">LOG_ID</th>
-                    <th className="px-4 py-2 border-r border-gray-900">TIMESTAMP</th>
-                    <th className="px-4 py-2 border-r border-gray-900">WINNER</th>
-                    <th className="px-4 py-2 border-r border-gray-900">SC_A</th>
-                    <th className="px-4 py-2 border-r border-gray-900">SC_B</th>
-                    <th className="px-4 py-2 border-r border-gray-900">SC_C</th>
-                    <th className="px-4 py-2">QUERY_SAMPLE</th>
+                    <th className="px-5 py-3 font-semibold">Log ID</th>
+                    <th className="px-5 py-3 font-semibold">Timestamp</th>
+                    <th className="px-5 py-3 font-semibold">Winner</th>
+                    <th className="px-5 py-3 font-semibold">Score A</th>
+                    <th className="px-5 py-3 font-semibold">Score B</th>
+                    <th className="px-5 py-3 font-semibold">Score C</th>
+                    <th className="px-5 py-3 font-semibold">Query Sample</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-900 text-gray-300">
+                <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
                   {logs.map((log, i) => (
-                    <tr key={log.id || i} className="hover:bg-gray-900/25 transition-colors">
-                      <td className="px-4 py-2 border-r border-gray-900 font-semibold text-gray-500 text-[10px]">
-                        {(log.id || '').substring(0, 8) || `MOCK_${i}`}
+                    <tr key={log.id || i} className="hover:bg-zinc-900/20 transition-colors">
+                      <td className="px-5 py-3 text-zinc-500 font-mono text-[10px]">
+                        {(log.id || '').substring(0, 8) || `REF_${i}`}
                       </td>
-                      <td className="px-4 py-2 border-r border-gray-900 text-[10px] text-gray-400 whitespace-nowrap">
+                      <td className="px-5 py-3 text-zinc-400 font-sans">
                         {formatDate(log.created_at)}
                       </td>
-                      <td className="px-4 py-2 border-r border-gray-900">
-                        <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded text-[10px]">
-                          VAR_{log.winner}
+                      <td className="px-5 py-3">
+                        <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider">
+                          Var {log.winner}
                         </span>
                       </td>
-                      <td className="px-4 py-2 border-r border-gray-900 text-cyan-400">{log.score_a?.toFixed(1) ?? '—'}</td>
-                      <td className="px-4 py-2 border-r border-gray-900 text-purple-400">{log.score_b?.toFixed(1) ?? '—'}</td>
-                      <td className="px-4 py-2 border-r border-gray-900 text-amber-400">{log.score_c?.toFixed(1) ?? '—'}</td>
-                      <td className="px-4 py-2 text-gray-400 truncate max-w-xs">{log.query}</td>
+                      <td className="px-5 py-3 text-zinc-300 font-medium">{log.score_a?.toFixed(1) ?? '—'}</td>
+                      <td className="px-5 py-3 text-zinc-300 font-medium">{log.score_b?.toFixed(1) ?? '—'}</td>
+                      <td className="px-5 py-3 text-zinc-300 font-medium">{log.score_c?.toFixed(1) ?? '—'}</td>
+                      <td className="px-5 py-3 text-zinc-500 truncate max-w-xs font-sans">{log.query}</td>
                     </tr>
                   ))}
                 </tbody>

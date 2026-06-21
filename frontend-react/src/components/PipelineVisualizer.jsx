@@ -2,159 +2,144 @@ import React from 'react'
 
 export default function PipelineVisualizer({ currentState, winner }) {
   // States: 'idle', 'running-ab', 'evaluating', 'promoting', 'complete'
-  
-  const getStepStatus = (stepName) => {
+
+  const steps = [
+    { id: 'query', label: '1. Input Query', desc: 'User Message' },
+    { id: 'variants', label: '2. A/B Variants', desc: 'Parallel LLM Runs' },
+    { id: 'judge', label: '3. LLM Judge', desc: 'Automated Scoring' },
+    { id: 'promote', label: '4. Promotion', desc: 'Llama 3.3 Route' },
+  ]
+
+  const getStepState = (stepId) => {
     switch (currentState) {
       case 'idle':
-        return 'inactive'
+        return 'waiting'
       case 'running-ab':
-        if (stepName === 'query' || stepName === 'variants') return 'active'
-        return 'inactive'
+        if (stepId === 'query') return 'done'
+        if (stepId === 'variants') return 'active'
+        return 'waiting'
       case 'evaluating':
-        if (stepName === 'query' || stepName === 'variants') return 'completed'
-        if (stepName === 'judge') return 'active'
-        return 'inactive'
+        if (stepId === 'query' || stepId === 'variants') return 'done'
+        if (stepId === 'judge') return 'active'
+        return 'waiting'
       case 'promoting':
-        if (stepName === 'query' || stepName === 'variants' || stepName === 'judge') return 'completed'
-        if (stepName === 'promote') return 'active'
-        return 'inactive'
+        if (stepId === 'query' || stepId === 'variants' || stepId === 'judge') return 'done'
+        if (stepId === 'promote') return 'active'
+        return 'waiting'
       case 'complete':
-        return 'completed'
+        return 'done'
       default:
-        return 'inactive'
+        return 'waiting'
     }
   }
 
-  const getNodeClass = (status, activeColor = 'cyan') => {
-    if (status === 'active') {
-      return {
-        cyan: 'border-cyan-500 bg-cyan-950/40 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] animate-pulse',
-        purple: 'border-purple-500 bg-purple-950/40 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)] animate-pulse',
-        amber: 'border-amber-500 bg-amber-950/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)] animate-pulse',
-      }[activeColor]
+  const getStatusClasses = (state) => {
+    switch (state) {
+      case 'done':
+        return {
+          ring: 'border-emerald-500/30 bg-emerald-950/10 text-emerald-400',
+          dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]',
+          label: 'text-gray-200',
+          desc: 'text-gray-500',
+        }
+      case 'active':
+        return {
+          ring: 'border-indigo-500 bg-indigo-950/20 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.25)] animate-pulse',
+          dot: 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] animate-ping',
+          label: 'text-indigo-400 font-semibold',
+          desc: 'text-indigo-500/70',
+        }
+      case 'waiting':
+      default:
+        return {
+          ring: 'border-zinc-800 bg-zinc-900/30 text-zinc-600',
+          dot: 'bg-zinc-800',
+          label: 'text-zinc-600',
+          desc: 'text-zinc-700',
+        }
     }
-    if (status === 'completed') {
-      return 'border-emerald-500 bg-emerald-950/20 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]'
-    }
-    return 'border-gray-800 bg-gray-900/40 text-gray-500'
   }
 
-  const getLineClass = (fromStatus, toStatus) => {
-    if (fromStatus === 'completed' && toStatus === 'active') {
-      return 'stroke-cyan-500 [stroke-dasharray:5] [animation:flow_dash_forward_2s_linear_infinite]'
+  const getFlowDescription = () => {
+    switch (currentState) {
+      case 'idle':
+        return 'System ready. Enter queries to run prompts in parallel.'
+      case 'running-ab':
+        return 'Generating variant responses on Groq (LLaMA 3.1 8B)...'
+      case 'evaluating':
+        return 'Scoring outputs using Judge LLM...'
+      case 'promoting':
+        return 'Promoting the winner to Llama 3.3 70B...'
+      case 'complete':
+        return `Evaluation complete. Variant ${winner} promoted.`
+      default:
+        return 'Offline'
     }
-    if (fromStatus === 'completed' && toStatus === 'completed') {
-      return 'stroke-emerald-500'
-    }
-    return 'stroke-gray-800'
   }
-
-  const statusText = {
-    idle: 'SYSTEM IDLE // AWAITING WORKBENCH INITIATION',
-    'running-ab': 'EXECUTING PARALLEL RUNS ON GROQ (LLaMA 3.1 8B)...',
-    evaluating: 'AI JUDGE EVALUATING RESPONSES...',
-    promoting: 'PROMOTING WINNING VARIANT VIA OPENROUTER...',
-    complete: 'PIPELINE COMPLETE // WINNER LOGGED',
-  }[currentState] || 'PIPELINE STATUS UNKNOWN'
-
-  const queryStatus = getStepStatus('query')
-  const variantsStatus = getStepStatus('variants')
-  const judgeStatus = getStepStatus('judge')
-  const promoteStatus = getStepStatus('promote')
 
   return (
-    <div className="bg-gray-950/30 rounded-xl border border-gray-900 p-6 font-mono text-xs">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${
-            currentState === 'idle' ? 'bg-gray-600' :
-            currentState === 'complete' ? 'bg-emerald-500' :
-            'bg-cyan-500 animate-ping'
-          }`} />
-          <span className="text-[10px] tracking-widest text-gray-400 uppercase">
-            {statusText}
-          </span>
+    <div className="bg-zinc-950/40 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      {/* Dynamic Background Glow */}
+      <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+      {/* Header Info */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/60 pb-4 mb-6">
+        <div>
+          <h2 className="text-sm font-bold tracking-tight uppercase text-zinc-300 font-sans">
+            Execution Flow Pipeline
+          </h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {getFlowDescription()}
+          </p>
         </div>
-        {winner && (
-          <span className="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2 py-0.5 rounded uppercase tracking-wider">
-            WINNER: VARIANT {winner}
+        {winner && currentState === 'complete' && (
+          <span className="text-[10px] bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider self-start sm:self-auto">
+            🏆 Winner: Variant {winner}
           </span>
         )}
       </div>
 
-      {/* Responsive Grid/Flex for layout */}
-      <div className="relative flex flex-col md:flex-row items-center justify-between gap-6 py-6 overflow-hidden">
-        {/* SVG connection lines for large screens */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none hidden md:block" style={{ zIndex: 0 }}>
-          {/* Query to Variants */}
-          <path d="M 120 70 L 260 30" fill="none" strokeWidth="2" className={getLineClass(queryStatus, variantsStatus)} />
-          <path d="M 120 70 L 260 70" fill="none" strokeWidth="2" className={getLineClass(queryStatus, variantsStatus)} />
-          <path d="M 120 70 L 260 110" fill="none" strokeWidth="2" className={getLineClass(queryStatus, variantsStatus)} />
+      {/* Pipeline Steps Row */}
+      <div className="relative flex flex-col md:flex-row items-center justify-between gap-8 md:gap-4 py-4">
+        {/* Connection line for large screens */}
+        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-zinc-800/50 -translate-y-6 hidden md:block z-0" />
+        
+        {/* Active glowing progress fill line */}
+        {currentState !== 'idle' && (
+          <div 
+            className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-indigo-500 to-cyan-400 -translate-y-6 hidden md:block z-0 transition-all duration-1000 ease-in-out"
+            style={{ 
+              width: currentState === 'running-ab' ? '33%' :
+                     currentState === 'evaluating' ? '66%' : '100%' 
+            }}
+          />
+        )}
 
-          {/* Variants to Judge */}
-          <path d="M 380 30 L 520 70" fill="none" strokeWidth="2" className={getLineClass(variantsStatus, judgeStatus)} />
-          <path d="M 380 70 L 520 70" fill="none" strokeWidth="2" className={getLineClass(variantsStatus, judgeStatus)} />
-          <path d="M 380 110 L 520 70" fill="none" strokeWidth="2" className={getLineClass(variantsStatus, judgeStatus)} />
-
-          {/* Judge to Promote */}
-          <path d="M 640 70 L 780 70" fill="none" strokeWidth="2" className={getLineClass(judgeStatus, promoteStatus)} />
-        </svg>
-
-        {/* Node 1: Input Query */}
-        <div className={`relative z-10 w-28 h-14 border rounded-lg flex flex-col items-center justify-center transition-all duration-300 ${getNodeClass(queryStatus, 'cyan')}`}>
-          <span className="text-[10px] text-gray-500">STEP 01</span>
-          <span className="font-bold">INPUT_QUERY</span>
-        </div>
-
-        {/* Node 2: Variant Branches */}
-        <div className="relative z-10 flex flex-col gap-3">
-          {['A', 'B', 'C'].map((variant) => {
-            const isWinner = winner === variant && currentState === 'complete'
-            let status = variantsStatus
-            if (currentState === 'complete' || currentState === 'promoting') {
-              status = 'completed'
-            }
-            const activeColor = variant === 'A' ? 'cyan' : variant === 'B' ? 'purple' : 'amber'
-            return (
-              <div
-                key={variant}
-                className={`w-32 h-10 border rounded-lg flex items-center justify-between px-3 transition-all duration-300 ${
-                  isWinner ? 'border-amber-400 bg-amber-950/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]' :
-                  getNodeClass(status, activeColor)
-                }`}
-              >
-                <span className="text-[10px] text-gray-500">VAR_{variant}</span>
-                <span className="font-bold text-[10px] truncate max-w-[60px]">
-                  {variant === 'A' ? 'Llama 3.1' : variant === 'B' ? 'Prompt_B' : 'Prompt_C'}
-                </span>
+        {steps.map((step, idx) => {
+          const state = getStepState(step.id)
+          const styles = getStatusClasses(state)
+          
+          return (
+            <div key={step.id} className="relative z-10 flex flex-col items-center text-center flex-1 w-full md:w-auto">
+              {/* Outer Ring Circle */}
+              <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${styles.ring}`}>
+                {/* Center Node Circle */}
+                <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${styles.dot}`} />
               </div>
-            )
-          })}
-        </div>
 
-        {/* Node 3: LLM Judge */}
-        <div className={`relative z-10 w-28 h-14 border rounded-lg flex flex-col items-center justify-center transition-all duration-300 ${getNodeClass(judgeStatus, 'amber')}`}>
-          <span className="text-[10px] text-gray-500">STEP 02</span>
-          <span className="font-bold">LLM_JUDGE</span>
-        </div>
-
-        {/* Node 4: Promoted output */}
-        <div className={`relative z-10 w-32 h-14 border rounded-lg flex flex-col items-center justify-center transition-all duration-300 ${getNodeClass(promoteStatus, 'purple')}`}>
-          <span className="text-[10px] text-gray-500">STEP 03</span>
-          <span className="font-bold text-[10px]">PROMOTED_LLM</span>
-        </div>
+              {/* Text Meta */}
+              <div className="mt-3.5">
+                <p className={`text-xs font-medium transition-colors duration-300 ${styles.label}`}>
+                  {step.label}
+                </p>
+                <p className={`text-[10px] mt-0.5 transition-colors duration-300 ${styles.desc}`}>
+                  {step.desc}
+                </p>
+              </div>
+            </div>
+          )
+        })}
       </div>
-
-      <style>{`
-        @keyframes flow_dash_forward {
-          to {
-            stroke-dashoffset: -20;
-          }
-        }
-        .animate-flow-dash {
-          animation: flow_dash_forward 2s linear infinite;
-        }
-      `}</style>
     </div>
   )
 }
