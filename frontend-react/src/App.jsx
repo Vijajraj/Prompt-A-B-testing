@@ -150,12 +150,12 @@ export default function App() {
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {theme === 'dark' ? (
-                // Sun Icon for dark mode (click to switch to light)
+                // Sun Icon for dark mode
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
                 </svg>
               ) : (
-                // Moon Icon for light mode (click to switch to dark)
+                // Moon Icon for light mode
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
@@ -164,8 +164,8 @@ export default function App() {
 
             <div className="hidden sm:flex items-center gap-3 font-sans text-[10px]">
               <span className="text-zinc-500">API Gateway:</span>
-              <span className="flex items-center gap-1.5 text-emerald-500 font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 ACTIVE
               </span>
             </div>
@@ -174,10 +174,10 @@ export default function App() {
       </header>
 
       {/* Main Workspace Layout */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 relative z-10">
         {/* Error notification */}
         {error && (
-          <div className="bg-red-50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 rounded-2xl p-4 text-red-600 dark:text-red-400 text-xs font-sans shadow-lg flex items-start gap-3">
+          <div className="bg-red-55 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 rounded-2xl p-4 text-red-600 dark:text-red-400 text-xs font-sans shadow-lg flex items-start gap-3">
             <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -191,24 +191,27 @@ export default function App() {
         {/* Dynamic Pipeline Flow Indicator */}
         <PipelineVisualizer currentState={pipelineState} winner={winner} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Input Workbench (7cols on lg) */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="bg-white border border-zinc-200 dark:bg-zinc-950/40 dark:border-zinc-800/80 rounded-2xl p-6 space-y-4 shadow-xl transition-colors duration-300">
-              <div className="border-b border-zinc-200 dark:border-zinc-800/60 pb-3">
-                <h2 className="text-xs font-bold font-sans tracking-widest uppercase text-zinc-500 dark:text-zinc-400">
-                  Prompt Configuration
-                </h2>
-                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wide">
-                  Configure prompt overrides and query input
-                </p>
-              </div>
-              <PromptInputs onRun={handleRun} loading={loading} promoting={promoting} />
-            </div>
+        {/* Full-Width Input Configuration Panel */}
+        <div className="bg-white border border-zinc-200 dark:bg-zinc-950/40 dark:border-zinc-800/80 rounded-2xl p-6 space-y-4 shadow-xl transition-colors duration-300">
+          <div className="border-b border-zinc-200 dark:border-zinc-800/60 pb-3">
+            <h2 className="text-xs font-bold font-sans tracking-widest uppercase text-zinc-500 dark:text-zinc-400">
+              Prompt Configuration
+            </h2>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wide">
+              Configure prompt overrides and query input
+            </p>
           </div>
+          <PromptInputs onRun={handleRun} loading={loading} promoting={promoting} />
+        </div>
 
-          {/* Right Column: Results & Promoted Output (5cols on lg) */}
-          <div className="lg:col-span-5 space-y-6">
+        {/* Results & Promoted outputs displayed below in full width */}
+        {(results || promoting) && (
+          <div className="space-y-8 animate-fade-in">
+            {/* Results Stdout Grid (Now gets full width layout!) */}
+            {results && (
+              <ResultsGrid results={results} winner={winner} />
+            )}
+
             {/* Winner output stream console */}
             {(winner || promoting) && (
               <WinnerBanner
@@ -217,24 +220,8 @@ export default function App() {
                 promoting={promoting}
               />
             )}
-
-            {/* Results Stdout Grid */}
-            {results && (
-              <ResultsGrid results={results} winner={winner} />
-            )}
-            
-            {/* If no runs yet, show empty trace workspace */}
-            {!results && !promoting && (
-              <div className="h-full min-h-[300px] border border-dashed border-zinc-200 dark:border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center text-center p-6 text-zinc-400 dark:text-zinc-500 font-sans text-xs bg-white/50 dark:bg-transparent">
-                <svg className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
-                <span className="font-semibold text-zinc-500 dark:text-zinc-400">Waiting for Execution</span>
-                <span className="text-[10px] mt-1 text-zinc-400 dark:text-zinc-600">Submit the prompt workbench on the left to initiate testing.</span>
-              </div>
-            )}
           </div>
-        </div>
+        )}
 
         {/* Database log inspector */}
         <RunHistory apiUrl={API_URL} />
