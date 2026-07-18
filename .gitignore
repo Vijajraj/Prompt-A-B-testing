@@ -5,3 +5,7 @@ node_modules/
 .DS_Store
 dist/
 .venv/
+mlruns/
+models/
+*.pkl
+drift_report.html

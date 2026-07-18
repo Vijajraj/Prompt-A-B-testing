@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export default function ResultsGrid({ results, winner }) {
+export default function ResultsGrid({ results, winner, scorerUsed }) {
   const [activeModal, setActiveModal] = useState(null) // { variant: 'A', text: '', score: 9.0 }
   const [copiedVariant, setCopiedVariant] = useState(null)
 
@@ -16,7 +16,7 @@ export default function ResultsGrid({ results, winner }) {
         <h3 className="text-xs font-bold font-sans uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
           Variant Outputs
         </h3>
-        <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">3 SAMPLES GENERATED</span>
+        <span className="text-[10px] text-zinc-400 dark:text-zinc-650 font-mono">3 SAMPLES GENERATED</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -37,9 +37,20 @@ export default function ResultsGrid({ results, winner }) {
                   <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 font-sans tracking-wide uppercase">
                     Variant {r.variant}
                   </h4>
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-mono">
-                    {r.variant === 'A' ? 'SYSTEM_1' : r.variant === 'B' ? 'SYSTEM_2' : 'SYSTEM_3'}
-                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-mono">
+                      {r.variant === 'A' ? 'SYSTEM_1' : r.variant === 'B' ? 'SYSTEM_2' : 'SYSTEM_3'}
+                    </span>
+                    {scorerUsed && (
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-semibold border uppercase tracking-wider ${
+                        scorerUsed === 'ml'
+                          ? 'bg-cyan-50 border-cyan-150 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/20'
+                          : 'bg-purple-50 border-purple-150 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+                      }`}>
+                        {scorerUsed === 'ml' ? 'ML Scored' : 'LLM Scored'}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex items-center gap-2">

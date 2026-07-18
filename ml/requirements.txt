@@ -1,0 +1,10 @@
+scikit-learn
+mlflow
+dagshub
+joblib
+pandas
+numpy
+textstat
+supabase
+python-dotenv
+datasets

@@ -1,12 +1,16 @@
 import React from 'react'
 
-export default function PipelineVisualizer({ currentState, winner }) {
+export default function PipelineVisualizer({ currentState, winner, scorerUsed }) {
   // States: 'idle', 'running-ab', 'evaluating', 'promoting', 'complete'
 
   const steps = [
     { id: 'query', label: '1. Input Query', desc: 'User Message' },
     { id: 'variants', label: '2. A/B Variants', desc: 'Parallel LLM Runs' },
-    { id: 'judge', label: '3. LLM Judge', desc: 'Automated Scoring' },
+    { 
+      id: 'judge', 
+      label: scorerUsed === 'ml' ? '3. ML Model' : scorerUsed === 'judge' ? '3. LLM Judge' : '3. Scorer', 
+      desc: scorerUsed === 'ml' ? 'Random Forest Scoring' : scorerUsed === 'judge' ? 'Automated LLM Judge' : 'Model or LLM Evaluation' 
+    },
     { id: 'promote', label: '4. Promotion', desc: 'Llama 3.3 Route' },
   ]
 
@@ -93,9 +97,20 @@ export default function PipelineVisualizer({ currentState, winner }) {
           </p>
         </div>
         {winner && currentState === 'complete' && (
-          <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400 px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider self-start sm:self-auto">
-            🏆 Winner: Variant {winner}
-          </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {scorerUsed && (
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border uppercase tracking-wider ${
+                scorerUsed === 'ml'
+                  ? 'bg-cyan-50 border-cyan-100 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/20'
+                  : 'bg-purple-50 border-purple-100 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+              }`}>
+                {scorerUsed === 'ml' ? '🤖 ML Scored' : '⚖️ LLM Scored'}
+              </span>
+            )}
+            <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400 px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider">
+              🏆 Winner: Variant {winner}
+            </span>
+          </div>
         )}
       </div>
 

@@ -4,6 +4,7 @@ import ResultsGrid from './components/ResultsGrid'
 import WinnerBanner from './components/WinnerBanner'
 import RunHistory from './components/RunHistory'
 import PipelineVisualizer from './components/PipelineVisualizer'
+import MLOpsDashboard from './components/MLOpsDashboard'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
@@ -16,7 +17,11 @@ export default function App() {
   const [promoting, setPromoting] = useState(false)
   const [error, setError] = useState(null)
   const [logId, setLogId] = useState(null)
+  const [scorerUsed, setScorerUsed] = useState(null)
   
+  // Tab state: 'ab' or 'mlops'
+  const [activeTab, setActiveTab] = useState('ab')
+
   // Pipeline state: 'idle', 'running-ab', 'evaluating', 'promoting', 'complete'
   const [pipelineState, setPipelineState] = useState('idle')
 
@@ -47,6 +52,7 @@ export default function App() {
     setResults(null)
     setWinner(null)
     setFinalOutput(null)
+    setScorerUsed(null)
     setLoading(true)
     setPipelineState('running-ab')
 
@@ -76,6 +82,7 @@ export default function App() {
       setWinner(runData.winner)
       setWinningPrompt(runData.winning_prompt)
       setLogId(runData.log_id)
+      setScorerUsed(runData.scorer_used)
       
       // Micro-delay to let the user see the Judge active state
       await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -137,9 +144,33 @@ export default function App() {
                 Prompt Studio
               </h1>
               <p className="text-[9px] text-zinc-500 dark:text-zinc-500 font-sans tracking-wider uppercase mt-0.5">
-                A/B TESTING & AUTO-PROMOTION WORKBENCH
+                HYBRID LLMOps + MLOps WORKBENCH
               </p>
             </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="flex items-center bg-zinc-100 dark:bg-zinc-900/60 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800/80 font-sans text-xs">
+            <button
+              onClick={() => setActiveTab('ab')}
+              className={`px-4 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+                activeTab === 'ab'
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-white'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
+              }`}
+            >
+              A/B Testing
+            </button>
+            <button
+              onClick={() => setActiveTab('mlops')}
+              className={`px-4 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+                activeTab === 'mlops'
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-white'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
+              }`}
+            >
+              MLops Dashboard
+            </button>
           </div>
           
           <div className="flex items-center gap-4">
@@ -188,43 +219,49 @@ export default function App() {
           </div>
         )}
 
-        {/* Dynamic Pipeline Flow Indicator */}
-        <PipelineVisualizer currentState={pipelineState} winner={winner} />
+        {activeTab === 'ab' ? (
+          <>
+            {/* Dynamic Pipeline Flow Indicator */}
+            <PipelineVisualizer currentState={pipelineState} winner={winner} scorerUsed={scorerUsed} />
 
-        {/* Full-Width Input Configuration Panel */}
-        <div className="bg-white border border-zinc-200 dark:bg-zinc-950/40 dark:border-zinc-800/80 rounded-2xl p-6 space-y-4 shadow-xl transition-colors duration-300">
-          <div className="border-b border-zinc-200 dark:border-zinc-800/60 pb-3">
-            <h2 className="text-xs font-bold font-sans tracking-widest uppercase text-zinc-500 dark:text-zinc-400">
-              Prompt Configuration
-            </h2>
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wide">
-              Configure prompt overrides and query input
-            </p>
-          </div>
-          <PromptInputs onRun={handleRun} loading={loading} promoting={promoting} />
-        </div>
+            {/* Full-Width Input Configuration Panel */}
+            <div className="bg-white border border-zinc-200 dark:bg-zinc-950/40 dark:border-zinc-800/80 rounded-2xl p-6 space-y-4 shadow-xl transition-colors duration-300">
+              <div className="border-b border-zinc-200 dark:border-zinc-800/60 pb-3">
+                <h2 className="text-xs font-bold font-sans tracking-widest uppercase text-zinc-500 dark:text-zinc-400">
+                  Prompt Configuration
+                </h2>
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wide">
+                  Configure prompt overrides and query input
+                </p>
+              </div>
+              <PromptInputs onRun={handleRun} loading={loading} promoting={promoting} />
+            </div>
 
-        {/* Results & Promoted outputs displayed below in full width */}
-        {(results || promoting) && (
-          <div className="space-y-8 animate-fade-in">
-            {/* Results Stdout Grid (Now gets full width layout!) */}
-            {results && (
-              <ResultsGrid results={results} winner={winner} />
+            {/* Results & Promoted outputs displayed below in full width */}
+            {(results || promoting) && (
+              <div className="space-y-8 animate-fade-in">
+                {/* Results Stdout Grid (Now gets full width layout!) */}
+                {results && (
+                  <ResultsGrid results={results} winner={winner} scorerUsed={scorerUsed} />
+                )}
+
+                {/* Winner output stream console */}
+                {(winner || promoting) && (
+                  <WinnerBanner
+                    winner={winner}
+                    finalOutput={finalOutput}
+                    promoting={promoting}
+                  />
+                )}
+              </div>
             )}
 
-            {/* Winner output stream console */}
-            {(winner || promoting) && (
-              <WinnerBanner
-                winner={winner}
-                finalOutput={finalOutput}
-                promoting={promoting}
-              />
-            )}
-          </div>
+            {/* Database log inspector */}
+            <RunHistory apiUrl={API_URL} />
+          </>
+        ) : (
+          <MLOpsDashboard apiUrl={API_URL} />
         )}
-
-        {/* Database log inspector */}
-        <RunHistory apiUrl={API_URL} />
       </main>
     </div>
   )
