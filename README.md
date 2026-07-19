@@ -62,6 +62,72 @@ To convert text outputs into quantitative data for Random Forest training, the f
 
 ---
 
+## Verification and Model Validation Architecture
+
+The reliability and accuracy of the scoring model and system endpoints are verified using a multi-tiered validation pipeline:
+
+```mermaid
+graph LR
+    subgraph Automated Testing Suite
+        APITests[API Endpoint Tests] -->|pytest| MainApp[main.py]
+        FeatureTests[Feature Extractor Tests] -->|pytest| FeatExtract[feature_extractor.py]
+        ScorerTests[Scorer Routing Tests] -->|pytest| ScorerSwitch[scorer.py]
+    end
+
+    subgraph MLOps Model Validation
+        TrainData[training_data] -->|Split 80-20| ModelFit[Fit Random Forest]
+        ModelFit -->|Evaluate| MAE[Mean Absolute Error]
+        ModelFit -->|Evaluate| RMSE[Root Mean Squared Error]
+        ModelFit -->|Evaluate| R2[R-Squared Accuracy]
+    end
+
+    subgraph Production Quality Monitoring
+        BaseData[Training Set Baseline] -->|Evidently AI| DriftCheck[Data Drift Analysis]
+        InputData[Production Runs Stream] -->|Evidently AI| DriftCheck
+        DriftCheck -->|Visual Output| HTMLReport[drift_report.html]
+    end
+```
+
+<details>
+<summary><b>Automated Unit Tests - 15 Passed (Click to expand)</b></summary>
+
+Unit tests are managed via pytest to ensure functional verification. All 15 tests pass successfully:
+
+*   **API Tests (`test_api.py`)**:
+    *   `test_health_check`: Verifies the root gateway responds with active scoring engine configurations.
+    *   `test_get_stats_error_or_ok`: Ensures the statistics endpoint aggregates parameters successfully.
+    *   `test_get_model_status`: Validates the structure of the model metadata response.
+*   **Feature Engineering Tests (`test_features.py`)**:
+    *   `test_extract_features_keys`: Confirms all 8 keys of the feature dictionary are generated.
+    *   `test_word_count`: Validates word-boundary counting.
+    *   `test_sentence_count`: Checks regex sentence separation.
+    *   `test_has_bullets_true` / `_false`: Tests list indicator detection.
+    *   `test_prompt_style`: Asserts style classifier returns indices in the [0, 2] range.
+    *   `test_features_to_vector`: Checks serialization to array format.
+    *   `test_readability`: Confirms Flesch Reading Ease calculations return valid float values.
+*   **Scoring Logic Tests (`test_scorer.py`)**:
+    *   `test_get_scorer_mode`: Asserts scorer configs match environments.
+    *   `test_model_exists` / `test_get_active_scorer`: Validates routing and active file system checks.
+    *   `test_score_responses_fallback`: Mocks a missing model file and confirms the system correctly falls back to LLM scoring without throwing errors.
+</details>
+
+<details>
+<summary><b>Evaluation Metrics & Drift Validation (Click to expand)</b></summary>
+
+### Regression Metrics
+Model performance is tracked using three standard regression metrics logged directly to DagsHub:
+*   **Mean Absolute Error (MAE)**: Measures the average absolute difference between the scores predicted by the Random Forest model and those assigned by the LLM Judge. Lower values indicate predictions closer to the human baseline.
+*   **Root Mean Squared Error (RMSE)**: Penalizes larger prediction errors, indicating the stability of model predictions across varying prompt quality levels.
+*   **R-Squared (R²)**: Measures the proportion of variance in scoring captured by the model features. Used to verify the predictive accuracy of the model relative to a simple average baseline.
+
+### Feature Drift Validation (Evidently AI)
+To check for dataset shift over time, Evidently AI runs statistical tests comparing the baseline training features against the latest production data.
+*   **Significance Thresholds**: Feature drift is detected when the distribution changes with a p-value below 0.05.
+*   **Retraining Trigger**: If dataset drift is confirmed, the monitoring script exits with a non-zero status code, flagging the GitHub Actions runner to trigger the continuous training workflow.
+</details>
+
+---
+
 ## MLOps Progression Lifecycle
 
 The platform is designed around a gamified training progression structure. Move through the levels to unlock production features:
