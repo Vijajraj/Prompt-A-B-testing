@@ -4,7 +4,7 @@ import ResultsGrid from './components/ResultsGrid'
 import WinnerBanner from './components/WinnerBanner'
 import RunHistory from './components/RunHistory'
 import PipelineVisualizer from './components/PipelineVisualizer'
-import MLOpsDashboard from './components/MLOpsDashboard'
+import MLflowReport from './components/MLflowReport'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
@@ -19,7 +19,7 @@ export default function App() {
   const [logId, setLogId] = useState(null)
   const [scorerUsed, setScorerUsed] = useState(null)
   
-  // Tab state: 'ab' or 'mlops'
+  // Tab state: 'ab' or 'mlflow'
   const [activeTab, setActiveTab] = useState('ab')
 
   // Pipeline state: 'idle', 'running-ab', 'evaluating', 'promoting', 'complete'
@@ -144,7 +144,7 @@ export default function App() {
                 Prompt Studio
               </h1>
               <p className="text-[9px] text-zinc-500 dark:text-zinc-500 font-sans tracking-wider uppercase mt-0.5">
-                HYBRID LLMOps + MLOps WORKBENCH
+                HYBRID LLMOps + MLflow WORKBENCH
               </p>
             </div>
           </div>
@@ -162,14 +162,14 @@ export default function App() {
               A/B Testing
             </button>
             <button
-              onClick={() => setActiveTab('mlops')}
+              onClick={() => setActiveTab('mlflow')}
               className={`px-4 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-                activeTab === 'mlops'
+                activeTab === 'mlflow'
                   ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-white'
                   : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
               }`}
             >
-              MLops Dashboard
+              MLflow Report
             </button>
           </div>
           
@@ -260,7 +260,7 @@ export default function App() {
             <RunHistory apiUrl={API_URL} />
           </>
         ) : (
-          <MLOpsDashboard apiUrl={API_URL} />
+          <MLflowReport apiUrl={API_URL} />
         )}
       </main>
     </div>
