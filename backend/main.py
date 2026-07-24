@@ -86,10 +86,38 @@ async def _download_model_from_storage():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """App startup/shutdown lifecycle."""
-    # Startup: try to download model from Supabase Storage
+    # Startup: ensure baseline model & MLflow runs exist
+    meta_path = MODEL_PATH.parent / "metadata.json"
+    if not model_exists() or not meta_path.exists():
+        logger.info("Initializing baseline ML model and MLflow experiment runs on startup...")
+        try:
+            import sys
+            sys.path.insert(0, str(Path(__file__).parent.parent / "ml"))
+            import train
+            train.main()
+        except Exception as e:
+            logger.warning(f"Startup model training notice: {e}")
+
     await _download_model_from_storage()
     load_model()
     yield
+
+
+# ---------------------------------------------------------------------------
+# Helper background task for post-experiment model retrain & MLflow log
+# ---------------------------------------------------------------------------
+
+def _bg_update_mlflow():
+    """Background task to retrain model and record new MLflow run after A/B evaluations."""
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent / "ml"))
+        import train
+        train.main()
+        # Reload model in memory
+        load_model(force_reload=True)
+    except Exception as e:
+        logger.warning(f"Background MLflow update notice: {e}")
     # Shutdown: nothing to clean up
 
 
@@ -171,8 +199,11 @@ def health_check():
 
 
 @app.post("/api/run")
-async def run_ab_test(req: RunRequest):
+async def run_ab_test(req: RunRequest, background_tasks: BackgroundTasks):
     logger.info("Received /api/run request.")
+
+    # Schedule background retrain & MLflow log update
+    background_tasks.add_task(_bg_update_mlflow)
 
     # Step 1: Run all 3 variants on Groq simultaneously
     try:
