@@ -8,6 +8,26 @@ import MLflowReport from './components/MLflowReport'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
+async function fetchWithRetry(url, options = {}, retries = 3, backoffMs = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options)
+      if (res.ok) return res
+      if (res.status >= 502 && i < retries - 1) {
+        await new Promise((r) => setTimeout(r, backoffMs * (i + 1)))
+        continue
+      }
+      return res
+    } catch (err) {
+      if (i < retries - 1) {
+        await new Promise((r) => setTimeout(r, backoffMs * (i + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
 export default function App() {
   const [results, setResults] = useState(null)
   const [winner, setWinner] = useState(null)
@@ -18,6 +38,7 @@ export default function App() {
   const [error, setError] = useState(null)
   const [logId, setLogId] = useState(null)
   const [scorerUsed, setScorerUsed] = useState(null)
+  const [gatewayStatus, setGatewayStatus] = useState('CHECKING')
   
   // Tab state: 'ab' or 'mlflow'
   const [activeTab, setActiveTab] = useState('ab')
@@ -32,6 +53,23 @@ export default function App() {
     }
     return 'light'
   })
+
+  // Warmup backend on mount to handle Render cold starts
+  useEffect(() => {
+    const warmup = async () => {
+      try {
+        const res = await fetchWithRetry(`${API_URL}/`, { method: 'GET' }, 2, 1500)
+        if (res.ok) {
+          setGatewayStatus('ACTIVE')
+        } else {
+          setGatewayStatus('WARMING UP')
+        }
+      } catch {
+        setGatewayStatus('WARMING UP')
+      }
+    }
+    warmup()
+  }, [])
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -57,8 +95,8 @@ export default function App() {
     setPipelineState('running-ab')
 
     try {
-      // Step 1: Run A/B test on Groq
-      const runRes = await fetch(`${API_URL}/api/run`, {
+      // Step 1: Run A/B test on Groq with auto-retry for Render cold-starts
+      const runRes = await fetchWithRetry(`${API_URL}/api/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -67,7 +105,7 @@ export default function App() {
           prompt_c: promptC,
           query,
         }),
-      })
+      }, 3, 2000)
 
       if (!runRes.ok) {
         const errText = await runRes.text()
@@ -83,6 +121,7 @@ export default function App() {
       setWinningPrompt(runData.winning_prompt)
       setLogId(runData.log_id)
       setScorerUsed(runData.scorer_used)
+      setGatewayStatus('ACTIVE')
       
       // Micro-delay for UI transition
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -92,7 +131,7 @@ export default function App() {
       setPromoting(true)
       setLoading(false)
 
-      const promoteRes = await fetch(`${API_URL}/api/promote`, {
+      const promoteRes = await fetchWithRetry(`${API_URL}/api/promote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,7 +141,7 @@ export default function App() {
           model,
         }),
         signal: AbortSignal.timeout(120000),
-      })
+      }, 2, 2000)
 
       if (!promoteRes.ok) {
         const errText = await promoteRes.text()
@@ -115,7 +154,7 @@ export default function App() {
     } catch (err) {
       const isFetchErr = err.message?.includes('Failed to fetch') || err.name === 'TypeError'
       const msg = isFetchErr
-        ? `Backend API Connection Notice: Unable to reach gateway at ${API_URL}. Ensure backend service is active.`
+        ? `Render Cold-Start Notice: Backend at ${API_URL} is waking up from free-tier sleep. Please retry in a few seconds.`
         : err.message
       setError(msg)
       setPipelineState('idle')
@@ -199,9 +238,13 @@ export default function App() {
 
             <div className="hidden sm:flex items-center gap-3 font-sans text-[10px]">
               <span className="text-zinc-500">API Gateway:</span>
-              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                ACTIVE
+              <span className={`flex items-center gap-1.5 font-semibold ${
+                gatewayStatus === 'ACTIVE' ? 'text-emerald-500' : 'text-amber-500'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  gatewayStatus === 'ACTIVE' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'
+                }`} />
+                {gatewayStatus}
               </span>
             </div>
           </div>
@@ -212,13 +255,13 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 relative z-10">
         {/* Error notification */}
         {error && (
-          <div className="bg-red-55 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 rounded-2xl p-4 text-red-600 dark:text-red-400 text-xs font-sans shadow-lg flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50 rounded-2xl p-4 text-amber-800 dark:text-amber-300 text-xs font-sans shadow-lg flex items-start gap-3">
+            <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div className="flex-1">
-              <p className="font-bold">System Runtime Exception</p>
-              <p className="mt-0.5 opacity-80 break-all">{error}</p>
+              <p className="font-bold">API Connection Notice</p>
+              <p className="mt-0.5 opacity-90 break-all">{error}</p>
             </div>
           </div>
         )}
