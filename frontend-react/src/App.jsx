@@ -84,8 +84,8 @@ export default function App() {
       setLogId(runData.log_id)
       setScorerUsed(runData.scorer_used)
       
-      // Micro-delay to let the user see the Judge active state
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Micro-delay for UI transition
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       // Step 3: Auto-promote winner to OpenRouter
       setPipelineState('promoting')

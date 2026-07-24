@@ -442,41 +442,69 @@ def get_model_status():
         try:
             meta = json.loads(meta_path.read_text())
             status.update(meta)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not read metadata.json: {e}")
 
-    # Check training data count
+    # Check training data count accurately
     try:
         count_res = supabase.table("training_data").select("id", count="exact").execute()
-        status["training_rows"] = count_res.count if count_res.count else 0
+        if count_res.count is not None:
+            status["training_rows"] = count_res.count
+        elif count_res.data is not None:
+            status["training_rows"] = len(count_res.data)
+        else:
+            status["training_rows"] = 0
     except Exception:
-        status["training_rows"] = "unknown"
+        status["training_rows"] = 0
 
     return status
 
 
 @app.get("/api/drift-report")
 async def get_drift_report():
-    """Fetch the latest Evidently drift report from Supabase Storage."""
+    """Fetch the latest Evidently drift report from local disk or Supabase Storage."""
+    # 1. Try reading from local project root first
+    local_report = Path(__file__).parent.parent / "drift_report.html"
+    if local_report.exists():
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=local_report.read_text(encoding="utf-8"), media_type="text/html")
+
+    # 2. Fallback to Supabase Storage
     try:
         data = supabase.storage.from_(MODEL_BUCKET).download("drift_report.html")
         if data:
             from fastapi.responses import HTMLResponse
             return HTMLResponse(content=data.decode("utf-8"), media_type="text/html")
-        else:
-            return {"status": "no_report", "message": "No drift report found. Run monitoring/drift_check.py first."}
     except Exception as e:
-        logger.info(f"No drift report available: {e}")
-        return {"status": "no_report", "message": f"No drift report available: {str(e)}"}
+        logger.info(f"No remote drift report in Storage: {e}")
+
+    # 3. If missing, generate on the fly
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent / "monitoring"))
+        from drift_check import generate_report_silently
+        if generate_report_silently() and local_report.exists():
+            from fastapi.responses import HTMLResponse
+            return HTMLResponse(content=local_report.read_text(encoding="utf-8"), media_type="text/html")
+    except Exception as e:
+        logger.warning(f"On-the-fly drift report generation failed: {e}")
+
+    return {"status": "no_report", "message": "No drift report available yet. Click 'Retrain Model Now' first."}
 
 
 @app.get("/api/mlflow/runs")
 def get_mlflow_runs():
-    """Return recent MLflow experiment runs."""
+    """Return recent MLflow experiment runs using absolute project root path."""
     try:
         import mlflow
 
-        tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "./mlruns")
+        os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
+        mlruns_dir = Path(__file__).parent.parent / "mlruns"
+        mlruns_dir.mkdir(parents=True, exist_ok=True)
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI", str(mlruns_dir.as_uri()))
+        if not tracking_uri.startswith("http") and not tracking_uri.startswith("file:"):
+            tracking_uri = str(mlruns_dir.as_uri())
+
         mlflow.set_tracking_uri(tracking_uri)
 
         experiment = mlflow.get_experiment_by_name("prompt-ab-scorer")
@@ -492,8 +520,8 @@ def get_mlflow_runs():
         runs_list = []
         for _, row in runs.iterrows():
             run_data = {
-                "run_id": row.get("run_id", ""),
-                "status": row.get("status", ""),
+                "run_id": str(row.get("run_id", "")),
+                "status": str(row.get("status", "")),
                 "start_time": str(row.get("start_time", "")),
                 "end_time": str(row.get("end_time", "")),
             }

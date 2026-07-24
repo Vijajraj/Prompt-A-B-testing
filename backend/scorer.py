@@ -222,13 +222,37 @@ Has bullet points: {has_bullets}. Readability (Flesch): {readability}.
 Write one sentence explaining why this score is justified."""
 
 
+async def _explain_single_variant(chat_groq, variant_label: str, predicted_score: float, features: dict) -> str:
+    """Generate 1-sentence explanation from Groq asynchronously with timeout."""
+    try:
+        explain_text = EXPLAIN_PROMPT.format(
+            score=predicted_score,
+            word_count=features["word_count"],
+            sentence_count=features["sentence_count"],
+            avg_sent_length=features["avg_sent_length"],
+            has_bullets="Yes" if features["has_bullets"] else "No",
+            readability=features["readability"],
+        )
+        explain_chain = ChatPromptTemplate.from_messages([
+            ("system", "You are a concise evaluator. Respond with exactly one sentence."),
+            ("human", "{text}")
+        ]) | chat_groq | StrOutputParser()
+
+        # Set a tight timeout (3 seconds) for the explanation so evaluation is fast
+        reason = await asyncio.wait_for(explain_chain.ainvoke({"text": explain_text}), timeout=3.0)
+        return reason.strip()
+    except Exception as e:
+        logger.warning(f"Groq explanation skipped/timed out for variant {variant_label}: {e}")
+        return f"ML model predicted score {predicted_score}/10 based on text features."
+
+
 async def score_with_ml(
     query: str,
     prompt_a: str, response_a: str,
     prompt_b: str, response_b: str,
     prompt_c: str, response_c: str,
 ) -> list[dict]:
-    """Score 3 responses using the trained ML model + Groq explanation."""
+    """Score 3 responses using the trained ML model + concurrent Groq explanations."""
     model = load_model()
     if model is None:
         logger.warning("ML model not found, falling back to judge LLM")
@@ -243,40 +267,30 @@ async def score_with_ml(
         ("C", prompt_c, response_c),
     ]
 
-    results = []
+    # Extract features & predict scores instantly for all 3 variants
+    predicted_scores = []
+    features_list = []
+
     for variant_label, prompt, response in variants:
-        # Extract features
         features = extract_features(response, prompt, query)
+        features_list.append(features)
+
         feature_vector = np.array([features_to_vector(features)])
+        raw_score = float(model.predict(feature_vector)[0])
+        predicted_score = round(max(1.0, min(10.0, raw_score)), 1)
+        predicted_scores.append(predicted_score)
 
-        # Predict score with ML model
-        predicted_score = float(model.predict(feature_vector)[0])
-        predicted_score = round(max(1.0, min(10.0, predicted_score)), 1)
+    # Run all 3 Groq explanation tasks concurrently in parallel
+    explain_tasks = [
+        _explain_single_variant(chat_groq, var_label, score, feats)
+        for (var_label, _, _), score, feats in zip(variants, predicted_scores, features_list)
+    ]
+    reasons = await asyncio.gather(*explain_tasks)
 
-        # Get 1-sentence explanation from Groq
-        try:
-            explain_text = EXPLAIN_PROMPT.format(
-                score=predicted_score,
-                word_count=features["word_count"],
-                sentence_count=features["sentence_count"],
-                avg_sent_length=features["avg_sent_length"],
-                has_bullets="Yes" if features["has_bullets"] else "No",
-                readability=features["readability"],
-            )
-            explain_chain = ChatPromptTemplate.from_messages([
-                ("system", "You are a concise evaluator. Respond with exactly one sentence."),
-                ("human", "{text}")
-            ]) | chat_groq | StrOutputParser()
-
-            reason = await explain_chain.ainvoke({"text": explain_text})
-            reason = reason.strip()
-        except Exception as e:
-            logger.error(f"Groq explanation failed for variant {variant_label}: {e}")
-            reason = f"ML model predicted score {predicted_score}/10."
-
-        results.append({"score": predicted_score, "reason": reason})
-
-    return results
+    return [
+        {"score": score, "reason": reason}
+        for score, reason in zip(predicted_scores, reasons)
+    ]
 
 
 # ---------------------------------------------------------------------------
