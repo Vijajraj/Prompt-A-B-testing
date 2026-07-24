@@ -45,17 +45,20 @@ def _get_groq_client():
     )
 
 
-def load_model():
+import gc
+
+def load_model(force_reload: bool = False):
     """Load the Random Forest model from disk. Returns None if not found."""
     global _cached_model, _model_loaded
 
-    if _model_loaded:
+    if _model_loaded and not force_reload:
         return _cached_model
 
     if MODEL_PATH.exists():
         try:
             _cached_model = joblib.load(MODEL_PATH)
             _model_loaded = True
+            gc.collect()
             logger.info(f"ML model loaded from {MODEL_PATH}")
             return _cached_model
         except Exception as e:

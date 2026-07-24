@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: prompt-ab-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn main:app --app-dir backend --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: MALLOC_TRIM_THRESHOLD_
+        value: "100000"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: MLFLOW_ALLOW_FILE_STORE
+        value: "true"

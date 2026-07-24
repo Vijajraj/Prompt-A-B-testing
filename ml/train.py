@@ -196,6 +196,8 @@ def main():
     except Exception as e:
         logger.info(f"Drift check notice: {e}")
 
+    import gc
+    gc.collect()
     print(f"Training Complete. MAE: {mae:.4f}, R2: {r2:.4f}, Sample Size: {len(X_train)}")
 
 if __name__ == "__main__":
