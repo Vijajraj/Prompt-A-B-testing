@@ -111,7 +111,7 @@ def main():
         except Exception as e:
             logger.warning(f"DagsHub init skipped: {e}")
             
-    mlflow_tracking_uri = str(mlruns_dir.as_uri())
+    mlflow_tracking_uri = str(mlruns_dir.absolute())
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment('prompt-ab-scorer')
     
