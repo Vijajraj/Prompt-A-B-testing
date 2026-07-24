@@ -315,27 +315,74 @@ async def run_ab_test(req: RunRequest, background_tasks: BackgroundTasks):
 async def promote_winner(req: PromoteRequest):
     logger.info(f"Received /api/promote request for log_id: {req.log_id}")
 
-    selected_model = req.model or PROMOTE_MODEL
-    logger.info(f"Promoting using model: {selected_model}")
+    requested_model = req.model or PROMOTE_MODEL
+    logger.info(f"Requested promotion model: {requested_model}")
 
-    try:
-        chat_model = ChatOpenAI(
-            model=selected_model,
-            base_url="https://openrouter.ai/api/v1",
-            api_key=OPENROUTER_API_KEY,
-        )
+    # Fallback model list if requested model returns 404 or rate-limit
+    models_to_try = [
+        requested_model,
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemma-2-9b-it:free",
+        "qwen/qwen-2.5-72b-instruct:free",
+        "deepseek/deepseek-r1:free",
+        "mistralai/mistral-7b-instruct:free",
+    ]
 
-        safe_prompt = _escape_braces(req.winning_prompt)
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", safe_prompt),
-            ("human", "{query}")
-        ])
-        chain = prompt_template | chat_model | StrOutputParser()
+    # Handle special groq/ prefix or auto
+    if requested_model.startswith("groq/"):
+        models_to_try = ["groq/llama-3.3-70b-versatile"]
 
-        final_output = await chain.ainvoke({"query": req.query})
-    except Exception as e:
-        logger.error(f"Error calling OpenRouter: {e}")
-        raise HTTPException(status_code=500, detail=f"OpenRouter API call failed: {str(e)}")
+    final_output = None
+    used_model = requested_model
+    last_error = None
+
+    for model_name in models_to_try:
+        try:
+            if model_name.startswith("groq/"):
+                groq_model_id = model_name.replace("groq/", "")
+                logger.info(f"Promoting via Groq model: {groq_model_id}")
+                chat_model = ChatGroq(model=groq_model_id, groq_api_key=GROQ_API_KEY)
+            else:
+                target_slug = "meta-llama/llama-3.3-70b-instruct:free" if model_name in ("openrouter/free", "openrouter/auto") else model_name
+                logger.info(f"Attempting OpenRouter model: {target_slug}")
+                chat_model = ChatOpenAI(
+                    model=target_slug,
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=OPENROUTER_API_KEY,
+                    max_retries=1,
+                )
+
+            safe_prompt = _escape_braces(req.winning_prompt)
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", safe_prompt),
+                ("human", "{query}")
+            ])
+            chain = prompt_template | chat_model | StrOutputParser()
+
+            final_output = await chain.ainvoke({"query": req.query})
+            used_model = model_name
+            logger.info(f"Successfully generated winner promotion with model: {used_model}")
+            break
+        except Exception as e:
+            logger.warning(f"Promotion failed with model {model_name}: {e}")
+            last_error = str(e)
+
+    # Secondary fallback to Groq if OpenRouter models fail
+    if not final_output:
+        try:
+            logger.info("OpenRouter models failed. Invoking Groq llama-3.3-70b-versatile fallback...")
+            chat_groq_fallback = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=GROQ_API_KEY)
+            safe_prompt = _escape_braces(req.winning_prompt)
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", safe_prompt),
+                ("human", "{query}")
+            ])
+            chain = prompt_template | chat_groq_fallback | StrOutputParser()
+            final_output = await chain.ainvoke({"query": req.query})
+            used_model = "llama-3.3-70b-versatile (Groq Fallback)"
+        except Exception as e:
+            logger.error(f"All model promotion attempts failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Promotion failed: {last_error or str(e)}")
 
     # Update Supabase log with final output
     if req.log_id:

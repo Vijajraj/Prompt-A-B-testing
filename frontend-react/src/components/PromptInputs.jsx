@@ -1,11 +1,14 @@
 import { useState } from 'react'
 
 const MODEL_OPTIONS = [
-  { label: 'Auto-Select Free (OpenRouter)', value: 'openrouter/free' },
-  { label: 'Llama 3.3 70B (Free)', value: 'meta-llama/llama-3.3-70b-instruct:free' },
-  { label: 'Gemma 4 31B (Free)', value: 'google/gemma-4-31b-it:free' },
-  { label: 'GPT OSS 120B (Free)', value: 'openai/gpt-oss-120b:free' },
-  { label: 'Llama 3.2 3B (Free)', value: 'meta-llama/llama-3.2-3b-instruct:free' },
+  { label: 'Auto-Select Best Free (OpenRouter)', value: 'openrouter/auto' },
+  { label: 'Llama 3.3 70B Instruct (Free)', value: 'meta-llama/llama-3.3-70b-instruct:free' },
+  { label: 'Llama 3.1 8B Instruct (Free)', value: 'meta-llama/llama-3.1-8b-instruct:free' },
+  { label: 'DeepSeek R1 Reasoning (Free)', value: 'deepseek/deepseek-r1:free' },
+  { label: 'Google Gemma 2 9B (Free)', value: 'google/gemma-2-9b-it:free' },
+  { label: 'Qwen 2.5 72B Instruct (Free)', value: 'qwen/qwen-2.5-72b-instruct:free' },
+  { label: 'Mistral 7B Instruct (Free)', value: 'mistralai/mistral-7b-instruct:free' },
+  { label: 'Groq Llama 3.3 70B (Fast Fallback)', value: 'groq/llama-3.3-70b-versatile' },
 ]
 
 export default function PromptInputs({ onRun, loading, promoting }) {
