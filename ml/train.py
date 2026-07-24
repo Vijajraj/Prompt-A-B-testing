@@ -102,19 +102,26 @@ def main():
     mlruns_dir = PROJECT_ROOT / "mlruns"
     mlruns_dir.mkdir(parents=True, exist_ok=True)
     
-    dagshub_user = os.environ.get("DAGSHUB_USERNAME")
-    dagshub_token = os.environ.get("DAGSHUB_TOKEN")
-    if dagshub_user and dagshub_token:
-        try:
-            import dagshub
-            dagshub.init(repo_owner=dagshub_user, repo_name='prompt-ab-scorer', mlflow=True)
-        except Exception as e:
-            logger.warning(f"DagsHub init skipped: {e}")
-            
-    mlflow_tracking_uri = str(mlruns_dir.absolute())
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
-    mlflow.set_experiment('prompt-ab-scorer')
-    
+    use_heavy_mlflow = False
+    try:
+        import mlflow
+        use_heavy_mlflow = True
+        dagshub_user = os.environ.get("DAGSHUB_USERNAME")
+        dagshub_token = os.environ.get("DAGSHUB_TOKEN")
+        if dagshub_user and dagshub_token:
+            try:
+                import dagshub
+                dagshub.init(repo_owner=dagshub_user, repo_name='prompt-ab-scorer', mlflow=True)
+            except Exception as e:
+                logger.warning(f"DagsHub init skipped: {e}")
+                
+        mlflow_tracking_uri = str(mlruns_dir.absolute())
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+        mlflow.set_experiment('prompt-ab-scorer')
+    except Exception as e:
+        logger.info(f"Using lightweight MLflow tracker: {e}")
+        import lightweight_mlflow as mlflow
+
     n_estimators = 100
     
     with mlflow.start_run():

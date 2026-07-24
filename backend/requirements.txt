@@ -8,10 +8,7 @@ langchain-groq
 langchain-openai
 python-dotenv
 scikit-learn
-mlflow
-evidently
 joblib
 pandas
 numpy
 textstat
-dagshub

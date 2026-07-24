@@ -579,63 +579,20 @@ def get_mlflow_runs():
         mlruns_dir = (Path(__file__).parent.parent / "mlruns").absolute()
         mlruns_dir.mkdir(parents=True, exist_ok=True)
 
-        tracking_uri = os.getenv("MLFLOW_TRACKING_URI", str(mlruns_dir))
-        mlflow.set_tracking_uri(tracking_uri)
+        # 1. Try heavy MLflow if installed
+        try:
+            import mlflow
+            tracking_uri = os.getenv("MLFLOW_TRACKING_URI", str(mlruns_dir))
+            mlflow.set_tracking_uri(tracking_uri)
 
-        experiment = mlflow.get_experiment_by_name("prompt-ab-scorer")
-        if not experiment:
-            try:
-                import sys
-                sys.path.insert(0, str(Path(__file__).parent.parent / "ml"))
-                import train
-                train.main()
-                experiment = mlflow.get_experiment_by_name("prompt-ab-scorer")
-            except Exception as e:
-                logger.warning(f"Auto-init MLflow experiment notice: {e}")
-
-        if not experiment:
-            return {"runs": [], "message": "No MLflow experiment found. Train a model first."}
-
-        runs = mlflow.search_runs(
-            experiment_ids=[experiment.experiment_id],
-            max_results=20,
-            order_by=["start_time DESC"],
-        )
-
-        runs_list = []
-        for _, row in runs.iterrows():
-            run_data = {
-                "run_id": str(row.get("run_id", "")),
-                "status": str(row.get("status", "")),
-                "start_time": str(row.get("start_time", "")),
-                "end_time": str(row.get("end_time", "")),
-            }
-            # Add metrics & params
-            for col in runs.columns:
-                if col.startswith("metrics."):
-                    metric_name = col.replace("metrics.", "")
-                    val = row[col]
-                    if val is not None and str(val) != "nan":
-                        run_data[f"metric_{metric_name}"] = round(float(val), 4)
-                elif col.startswith("params."):
-                    param_name = col.replace("params.", "")
-                    val = row[col]
-                    if val is not None and str(val) != "nan":
-                        run_data[f"param_{param_name}"] = str(val)
-            runs_list.append(run_data)
-
-        # Auto-train initial run if runs_list is empty
-        if not runs_list:
-            try:
-                import sys
-                sys.path.insert(0, str(Path(__file__).parent.parent / "ml"))
-                import train
-                train.main()
+            experiment = mlflow.get_experiment_by_name("prompt-ab-scorer")
+            if experiment:
                 runs = mlflow.search_runs(
                     experiment_ids=[experiment.experiment_id],
                     max_results=20,
                     order_by=["start_time DESC"],
                 )
+                runs_list = []
                 for _, row in runs.iterrows():
                     run_data = {
                         "run_id": str(row.get("run_id", "")),
@@ -655,11 +612,30 @@ def get_mlflow_runs():
                             if val is not None and str(val) != "nan":
                                 run_data[f"param_{param_name}"] = str(val)
                     runs_list.append(run_data)
-            except Exception as e:
-                logger.warning(f"Auto-train initial MLflow run notice: {e}")
+
+                if runs_list:
+                    gc.collect()
+                    return {"runs": runs_list}
+        except Exception as e:
+            logger.info(f"Heavy MLflow search notice: {e}")
+
+        # 2. Fallback to lightweight MLflow tracker
+        try:
+            import sys
+            sys.path.insert(0, str(Path(__file__).parent.parent / "ml"))
+            import lightweight_mlflow
+            runs_list = lightweight_mlflow.get_or_create_runs()
+            if not runs_list:
+                import train
+                train.main()
+                runs_list = lightweight_mlflow.get_or_create_runs()
+            gc.collect()
+            return {"runs": runs_list}
+        except Exception as e:
+            logger.warning(f"Lightweight MLflow fetch notice: {e}")
 
         gc.collect()
-        return {"runs": runs_list}
+        return {"runs": []}
     except Exception as e:
         logger.error(f"Error fetching MLflow runs: {e}")
         return {"runs": [], "message": f"Could not fetch MLflow runs: {str(e)}"}
