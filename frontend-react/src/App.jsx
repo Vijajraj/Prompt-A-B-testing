@@ -113,7 +113,11 @@ export default function App() {
       setFinalOutput(promoteData)
       setPipelineState('complete')
     } catch (err) {
-      setError(err.message)
+      const isFetchErr = err.message?.includes('Failed to fetch') || err.name === 'TypeError'
+      const msg = isFetchErr
+        ? `Backend API Connection Notice: Unable to reach gateway at ${API_URL}. Ensure backend service is active.`
+        : err.message
+      setError(msg)
       setPipelineState('idle')
     } finally {
       setLoading(false)
