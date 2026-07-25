@@ -265,3 +265,4 @@ python -m pytest backend/tests/ -v
 
 * **CI Pipeline (`.github/workflows/ci.yml`)**: Triggered on every git push or pull request to the `main` branch. Executes the pytest suite, verifying backend API health, scorer switches, and feature engineering.
 * **CT Pipeline (`.github/workflows/retrain.yml`)**: Triggered automatically on a weekly schedule or via manual execution. Pulls training data from Supabase, runs the ML training script, registers the model, uploads the artifact, checks for drift, and pings the Render redeployment hook to restart the API server.
+* **Keep-Alive Cron Workflow (`.github/workflows/keep_alive.yml`)**: Triggered automatically every 10 minutes (`*/10 * * * *`). Sends a lightweight HTTP GET ping to `https://prompt-ab-backend.onrender.com/` to keep the Render free instance continuously active and prevent free-tier 15-minute container sleep.

@@ -1,23 +1,26 @@
-name: Keep Render Awake
+name: Keep Render Awake (Prevent Cold-Start)
 
 on:
   schedule:
-    # Runs every 14 minutes
-    - cron: '*/14 * * * *'
-  # Allows manual triggering from the Actions tab
+    # Run every 10 minutes to prevent Render free-tier from sleeping (15-min idle timeout)
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
-  ping:
+  keep-alive:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render backend
-        # Using a Repository Variable (vars.RENDER_URL) is highly recommended.
-        # Otherwise, replace the URL below with your actual Render backend URL:
+      - name: Ping Render Backend Service
         run: |
           URL="${{ vars.RENDER_URL }}"
           if [ -z "$URL" ]; then
-            URL="https://YOUR_RENDER_APP_NAME.onrender.com/"
+            URL="https://prompt-ab-backend.onrender.com/"
           fi
-          echo "Pinging $URL"
-          curl -I -s -o /dev/null -w "%{http_code}" "$URL"
+          echo "Sending keep-alive ping to: $URL"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+          echo "Render Backend Response Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "Success: Render backend service is active and awake!"
+          else
+            echo "Notice: Backend responded with status $HTTP_STATUS (waking up or booting)"
+          fi
