@@ -135,14 +135,48 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS - Standard middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# CORS - Fallback raw middleware to ensure headers are present even on errors/exceptions
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse
+
+class CORSFallbackMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        # Handle preflight OPTIONS requests immediately
+        if request.method == "OPTIONS":
+            return StarletteResponse(
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Max-Age": "3600",
+                },
+            )
+        try:
+            response = await call_next(request)
+        except Exception:
+            response = StarletteResponse(
+                content='{"detail":"Internal Server Error"}',
+                status_code=500,
+                media_type="application/json",
+            )
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+app.add_middleware(CORSFallbackMiddleware)
 
 
 # ---------------------------------------------------------------------------
