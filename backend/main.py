@@ -429,7 +429,7 @@ async def promote_winner(req: PromoteRequest):
             logger.error(f"Error updating Supabase with final output: {e}")
 
     return {
-        "model": selected_model,
+        "model": used_model,
         "final_output": final_output,
     }
 
