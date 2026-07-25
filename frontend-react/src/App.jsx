@@ -6,7 +6,11 @@ import RunHistory from './components/RunHistory'
 import PipelineVisualizer from './components/PipelineVisualizer'
 import MLflowReport from './components/MLflowReport'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const API_URL = import.meta.env.VITE_API_URL || (
+  typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    ? 'https://prompt-ab-backend.onrender.com'
+    : 'http://127.0.0.1:8000'
+)
 
 async function fetchWithRetry(url, options = {}, retries = 6, backoffMs = 5000) {
   for (let i = 0; i < retries; i++) {
