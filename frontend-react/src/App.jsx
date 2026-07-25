@@ -8,24 +8,43 @@ import MLflowReport from './components/MLflowReport'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
-async function fetchWithRetry(url, options = {}, retries = 3, backoffMs = 2000) {
+async function fetchWithRetry(url, options = {}, retries = 6, backoffMs = 5000) {
   for (let i = 0; i < retries; i++) {
     try {
       const res = await fetch(url, options)
       if (res.ok) return res
+      // Retry on 502/503/504 (Render cold-start gateway errors)
       if (res.status >= 502 && i < retries - 1) {
-        await new Promise((r) => setTimeout(r, backoffMs * (i + 1)))
+        await new Promise((r) => setTimeout(r, backoffMs))
         continue
       }
       return res
     } catch (err) {
       if (i < retries - 1) {
-        await new Promise((r) => setTimeout(r, backoffMs * (i + 1)))
+        await new Promise((r) => setTimeout(r, backoffMs))
         continue
       }
       throw err
     }
   }
+}
+
+async function waitForBackend(url, setStatus, maxAttempts = 12) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      setStatus(`WAKING UP (${i + 1}/${maxAttempts})`)
+      const res = await fetch(`${url}/`, { method: 'GET', signal: AbortSignal.timeout(8000) })
+      if (res.ok) {
+        setStatus('ACTIVE')
+        return true
+      }
+    } catch {
+      // Server not ready yet
+    }
+    await new Promise((r) => setTimeout(r, 5000))
+  }
+  setStatus('OFFLINE')
+  return false
 }
 
 export default function App() {
@@ -39,6 +58,7 @@ export default function App() {
   const [logId, setLogId] = useState(null)
   const [scorerUsed, setScorerUsed] = useState(null)
   const [gatewayStatus, setGatewayStatus] = useState('CHECKING')
+  const [backendReady, setBackendReady] = useState(false)
   
   // Tab state: 'ab' or 'mlflow'
   const [activeTab, setActiveTab] = useState('ab')
@@ -54,19 +74,11 @@ export default function App() {
     return 'light'
   })
 
-  // Warmup backend on mount to handle Render cold starts
+  // Persistent warmup: keep pinging Render until it's alive (up to 60s)
   useEffect(() => {
     const warmup = async () => {
-      try {
-        const res = await fetchWithRetry(`${API_URL}/`, { method: 'GET' }, 2, 1500)
-        if (res.ok) {
-          setGatewayStatus('ACTIVE')
-        } else {
-          setGatewayStatus('WARMING UP')
-        }
-      } catch {
-        setGatewayStatus('WARMING UP')
-      }
+      const alive = await waitForBackend(API_URL, setGatewayStatus, 12)
+      setBackendReady(alive)
     }
     warmup()
   }, [])
@@ -94,6 +106,18 @@ export default function App() {
     setLoading(true)
     setPipelineState('running-ab')
 
+    // If backend isn't ready yet, wait for it first
+    if (!backendReady) {
+      const alive = await waitForBackend(API_URL, setGatewayStatus, 12)
+      setBackendReady(alive)
+      if (!alive) {
+        setError('Backend service could not be reached after 60 seconds. Please check Render deployment status.')
+        setLoading(false)
+        setPipelineState('idle')
+        return
+      }
+    }
+
     try {
       // Step 1: Run A/B test on Groq with auto-retry for Render cold-starts
       const runRes = await fetchWithRetry(`${API_URL}/api/run`, {
@@ -105,7 +129,7 @@ export default function App() {
           prompt_c: promptC,
           query,
         }),
-      }, 3, 2000)
+      })
 
       if (!runRes.ok) {
         const errText = await runRes.text()
@@ -122,6 +146,7 @@ export default function App() {
       setLogId(runData.log_id)
       setScorerUsed(runData.scorer_used)
       setGatewayStatus('ACTIVE')
+      setBackendReady(true)
       
       // Micro-delay for UI transition
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -141,7 +166,7 @@ export default function App() {
           model,
         }),
         signal: AbortSignal.timeout(120000),
-      }, 2, 2000)
+      })
 
       if (!promoteRes.ok) {
         const errText = await promoteRes.text()
@@ -153,10 +178,14 @@ export default function App() {
       setPipelineState('complete')
     } catch (err) {
       const isFetchErr = err.message?.includes('Failed to fetch') || err.name === 'TypeError'
-      const msg = isFetchErr
-        ? `Render Cold-Start Notice: Backend at ${API_URL} is waking up from free-tier sleep. Please retry in a few seconds.`
-        : err.message
-      setError(msg)
+      if (isFetchErr) {
+        // Auto-trigger warmup and tell user to retry
+        setBackendReady(false)
+        waitForBackend(API_URL, setGatewayStatus, 12).then((alive) => setBackendReady(alive))
+        setError('Backend is waking up from sleep. It will be ready in ~30 seconds. Please retry after the gateway status shows ACTIVE.')
+      } else {
+        setError(err.message)
+      }
       setPipelineState('idle')
     } finally {
       setLoading(false)
@@ -253,6 +282,20 @@ export default function App() {
 
       {/* Main Workspace Layout */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 relative z-10">
+        {/* Backend waking up banner */}
+        {!backendReady && gatewayStatus !== 'ACTIVE' && (
+          <div className="bg-indigo-50 border border-indigo-200 dark:bg-indigo-950/20 dark:border-indigo-900/50 rounded-2xl p-4 text-indigo-800 dark:text-indigo-300 text-xs font-sans shadow-lg flex items-center gap-3 animate-pulse">
+            <svg className="w-5 h-5 text-indigo-500 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <div className="flex-1">
+              <p className="font-bold">Waking Up Render Backend Service</p>
+              <p className="mt-0.5 opacity-90">Free-tier containers sleep after 15 minutes of inactivity. Automatically reconnecting... ({gatewayStatus})</p>
+            </div>
+          </div>
+        )}
+
         {/* Error notification */}
         {error && (
           <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50 rounded-2xl p-4 text-amber-800 dark:text-amber-300 text-xs font-sans shadow-lg flex items-start gap-3">
