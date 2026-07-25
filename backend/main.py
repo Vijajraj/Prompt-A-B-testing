@@ -352,14 +352,11 @@ async def promote_winner(req: PromoteRequest):
     requested_model = req.model or PROMOTE_MODEL
     logger.info(f"Requested promotion model: {requested_model}")
 
-    # Fallback model list if requested model returns 404 or rate-limit
+    # Try requested model first, then fallback model list
     models_to_try = [
         requested_model,
         "meta-llama/llama-3.3-70b-instruct:free",
-        "google/gemma-2-9b-it:free",
-        "qwen/qwen-2.5-72b-instruct:free",
-        "deepseek/deepseek-r1:free",
-        "mistralai/mistral-7b-instruct:free",
+        "groq/llama-3.3-70b-versatile",
     ]
 
     # Handle special groq/ prefix or auto
@@ -384,6 +381,7 @@ async def promote_winner(req: PromoteRequest):
                     base_url="https://openrouter.ai/api/v1",
                     api_key=OPENROUTER_API_KEY,
                     max_retries=1,
+                    request_timeout=4.0,
                 )
 
             safe_prompt = _escape_braces(req.winning_prompt)
@@ -393,18 +391,19 @@ async def promote_winner(req: PromoteRequest):
             ])
             chain = prompt_template | chat_model | StrOutputParser()
 
-            final_output = await chain.ainvoke({"query": req.query})
+            # Execute with strict 4.0 second timeout to prevent UI stalling
+            final_output = await asyncio.wait_for(chain.ainvoke({"query": req.query}), timeout=4.0)
             used_model = model_name
             logger.info(f"Successfully generated winner promotion with model: {used_model}")
             break
         except Exception as e:
-            logger.warning(f"Promotion failed with model {model_name}: {e}")
+            logger.warning(f"Promotion attempt notice with model {model_name}: {e}")
             last_error = str(e)
 
-    # Secondary fallback to Groq if OpenRouter models fail
+    # Primary high-speed fallback to Groq LLaMA 3.3 70B if OpenRouter models stall or fail
     if not final_output:
         try:
-            logger.info("OpenRouter models failed. Invoking Groq llama-3.3-70b-versatile fallback...")
+            logger.info("OpenRouter models stalled or failed. Invoking Groq llama-3.3-70b-versatile fallback...")
             chat_groq_fallback = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=GROQ_API_KEY)
             safe_prompt = _escape_braces(req.winning_prompt)
             prompt_template = ChatPromptTemplate.from_messages([
@@ -412,8 +411,8 @@ async def promote_winner(req: PromoteRequest):
                 ("human", "{query}")
             ])
             chain = prompt_template | chat_groq_fallback | StrOutputParser()
-            final_output = await chain.ainvoke({"query": req.query})
-            used_model = "llama-3.3-70b-versatile (Groq Fallback)"
+            final_output = await asyncio.wait_for(chain.ainvoke({"query": req.query}), timeout=10.0)
+            used_model = "llama-3.3-70b-versatile (Groq High-Speed Fallback)"
         except Exception as e:
             logger.error(f"All model promotion attempts failed: {e}")
             raise HTTPException(status_code=500, detail=f"Promotion failed: {last_error or str(e)}")
