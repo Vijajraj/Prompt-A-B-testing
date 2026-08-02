@@ -11,6 +11,36 @@ const MODEL_OPTIONS = [
   { label: 'Groq Llama 3.3 70B (Fast Fallback)', value: 'groq/llama-3.3-70b-versatile' },
 ]
 
+// Defined at module scope so React maintains a stable DOM reference & focus on every keystroke
+function EditorBox({ value, onChange, label, filename, rows = 3, disabled }) {
+  return (
+    <div className="border border-zinc-200 dark:border-zinc-800/80 rounded-2xl overflow-hidden bg-white dark:bg-zinc-950/40 dark:backdrop-blur-md shadow-lg transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/60">
+      {/* Editor Tab Header */}
+      <div className="flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-900/60 px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800/60 select-none">
+        <div className="flex items-center gap-2">
+          <svg className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 font-sans tracking-wide">
+            {filename}
+          </span>
+        </div>
+        <span className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-widest font-mono">system</span>
+      </div>
+      
+      {/* Editor Body */}
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        disabled={disabled}
+        className="w-full bg-transparent resize-none focus:outline-none px-4 py-3.5 text-sm leading-relaxed text-zinc-800 placeholder-zinc-300 dark:text-zinc-200 dark:placeholder-zinc-700 focus:bg-zinc-50/20 dark:focus:bg-zinc-950/20 transition-all font-sans"
+        placeholder={`Enter configuration for ${label}...`}
+      />
+    </div>
+  )
+}
+
 export default function PromptInputs({ onRun, loading, promoting }) {
   const [promptA, setPromptA] = useState('Summarize formally in 2-3 sentences')
   const [promptB, setPromptB] = useState('Summarize as 3-5 bullet points')
@@ -28,36 +58,6 @@ export default function PromptInputs({ onRun, loading, promoting }) {
 
   const isDisabled = loading || promoting
 
-  // Modern SaaS Editor Box
-  const EditorBox = ({ value, onChange, label, filename, rows = 3 }) => {
-    return (
-      <div className="border border-zinc-200 dark:border-zinc-800/80 rounded-2xl overflow-hidden bg-white dark:bg-zinc-950/40 dark:backdrop-blur-md shadow-lg transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/60">
-        {/* Editor Tab Header */}
-        <div className="flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-900/60 px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800/60 select-none">
-          <div className="flex items-center gap-2">
-            <svg className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 font-sans tracking-wide">
-              {filename}
-            </span>
-          </div>
-          <span className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-widest font-mono">system</span>
-        </div>
-        
-        {/* Editor Body */}
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          rows={rows}
-          disabled={isDisabled}
-          className="w-full bg-transparent resize-none focus:outline-none px-4 py-3.5 text-sm leading-relaxed text-zinc-800 placeholder-zinc-300 dark:text-zinc-200 dark:placeholder-zinc-700 focus:bg-zinc-50/20 dark:focus:bg-zinc-950/20 transition-all font-sans"
-          placeholder={`Enter configuration for ${label}...`}
-        />
-      </div>
-    )
-  }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* 3 Prompts side by side */}
@@ -68,6 +68,7 @@ export default function PromptInputs({ onRun, loading, promoting }) {
           label="Prompt A"
           filename="variant_a.prompt"
           rows={4}
+          disabled={isDisabled}
         />
         <EditorBox
           value={promptB}
@@ -75,6 +76,7 @@ export default function PromptInputs({ onRun, loading, promoting }) {
           label="Prompt B"
           filename="variant_b.prompt"
           rows={4}
+          disabled={isDisabled}
         />
         <EditorBox
           value={promptC}
@@ -82,6 +84,7 @@ export default function PromptInputs({ onRun, loading, promoting }) {
           label="Prompt C"
           filename="variant_c.prompt"
           rows={4}
+          disabled={isDisabled}
         />
       </div>
 
@@ -92,6 +95,7 @@ export default function PromptInputs({ onRun, loading, promoting }) {
         label="User Query"
         filename="user_message.query"
         rows={4}
+        disabled={isDisabled}
       />
 
       {/* Controls: Model Select & Run Button */}
