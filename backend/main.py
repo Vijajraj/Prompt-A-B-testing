@@ -46,7 +46,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 PROMOTE_MODEL = os.getenv("PROMOTE_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 
 # Validate environment setup

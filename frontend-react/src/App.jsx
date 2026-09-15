@@ -218,7 +218,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] text-zinc-900 dark:bg-[#07080d] dark:text-zinc-100 relative overflow-x-hidden font-sans selection:bg-indigo-500/30 selection:text-indigo-200 transition-colors duration-300">
+    <div className="min-h-screen bg-[#f9fafb] text-zinc-900 dark:bg-[#07080d] dark:text-zinc-100 relative overflow-x-hidden font-sans selection:bg-indigo-600 selection:text-white dark:selection:bg-indigo-500 dark:selection:text-white transition-colors duration-300">
       {/* Sleek Design Grid Overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:5rem_5rem] pointer-events-none opacity-40 dark:opacity-[0.04]" />
       
@@ -229,19 +229,16 @@ export default function App() {
       <header className="border-b border-zinc-200 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-950/20 backdrop-blur-md sticky top-0 z-20 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Elegant SVG Logo */}
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-950/25">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
+            {/* Custom Shield Workbench Logo */}
+            <img 
+              src="/logo.jpg" 
+              alt="Prompt Studio Logo" 
+              className="w-9 h-9 rounded-xl object-cover border border-indigo-500/30 shadow-md shadow-indigo-500/10" 
+            />
             <div>
-              <h1 className="text-sm font-bold tracking-tight font-sans text-zinc-900 dark:text-zinc-100">
+              <h1 className="text-base font-bold tracking-tight font-sans text-zinc-900 dark:text-zinc-100">
                 Prompt Studio
               </h1>
-              <p className="text-[9px] text-zinc-500 dark:text-zinc-500 font-sans tracking-wider uppercase mt-0.5">
-                HYBRID LLMOps + MLflow WORKBENCH
-              </p>
             </div>
           </div>
 

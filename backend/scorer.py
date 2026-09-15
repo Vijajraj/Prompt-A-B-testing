@@ -40,7 +40,7 @@ _model_loaded = False
 def _get_groq_client():
     """Create a Groq chat client for scoring/explaining."""
     return ChatGroq(
-        model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
         groq_api_key=os.getenv("GROQ_API_KEY"),
     )
 
