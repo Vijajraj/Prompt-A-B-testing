@@ -74,7 +74,7 @@ GROQ_API_KEY=your_groq_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your_anon_key
-GROQ_MODEL=llama-3.1-8b-instant
+GROQ_MODEL=llama-3.3-70b-versatile
 PROMOTE_MODEL=meta-llama/llama-3.3-70b-instruct:free
 ```
 
