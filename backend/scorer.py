@@ -207,10 +207,10 @@ async def score_with_judge(
 ) -> list[dict]:
     """Score 3 responses using judge LLM with concurrent model racing."""
     judge_prompt = JUDGE_PROMPT_TEMPLATE.format(
-        query=query,
-        prompt_a=prompt_a, response_a=response_a,
-        prompt_b=prompt_b, response_b=response_b,
-        prompt_c=prompt_c, response_c=response_c,
+        query=query[:200],
+        prompt_a=prompt_a[:150], response_a=response_a[:300],
+        prompt_b=prompt_b[:150], response_b=response_b[:300],
+        prompt_c=prompt_c[:150], response_c=response_c[:300],
     )
 
     tasks = [
