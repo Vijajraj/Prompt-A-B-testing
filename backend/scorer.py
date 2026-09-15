@@ -174,14 +174,14 @@ def _parse_json_safely(text: str):
     raise ValueError(f"Could not parse judge response as JSON: {text}")
 
 
-def _get_fallback_client():
+def _get_fallback_client(model_slug: str = "nvidia/nemotron-3.5-lightning:free"):
     """Create an OpenRouter fallback client when Groq is unavailable."""
     return ChatOpenAI(
-        model="meta-llama/llama-3.3-70b-instruct:free",
+        model=model_slug,
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY"),
         max_retries=1,
-        request_timeout=8.0,
+        request_timeout=10.0,
     )
 
 
@@ -218,29 +218,37 @@ async def score_with_judge(
             })
         return results
     except Exception as e:
-        logger.warning(f"Primary Groq judge LLM failed: {e}. Trying OpenRouter fallback...")
-        try:
-            fallback_chain = ChatPromptTemplate.from_messages([
-                ("system", "You are a precise JSON-only evaluator. Return only raw JSON, no explanations, no wrappers."),
-                ("human", "{eval_text}")
-            ]) | _get_fallback_client() | StrOutputParser()
-            judge_response = await fallback_chain.ainvoke({"eval_text": judge_prompt})
-            evaluation = _parse_json_safely(judge_response)
+        logger.warning(f"Primary Groq judge LLM failed: {e}. Trying active OpenRouter fallback models...")
+        active_slugs = [
+            "nvidia/nemotron-3.5-lightning:free",
+            "google/gemma-4-31b-it:free",
+            "liquid/lfm-2.5-2.6b:free",
+        ]
+        for slug in active_slugs:
+            try:
+                fallback_chain = ChatPromptTemplate.from_messages([
+                    ("system", "You are a precise JSON-only evaluator. Return only raw JSON, no explanations, no wrappers."),
+                    ("human", "{eval_text}")
+                ]) | _get_fallback_client(slug) | StrOutputParser()
+                judge_response = await fallback_chain.ainvoke({"eval_text": judge_prompt})
+                evaluation = _parse_json_safely(judge_response)
 
-            results = []
-            for variant in ["A", "B", "C"]:
-                results.append({
-                    "score": float(evaluation.get(variant, {}).get("score", 5.0)),
-                    "reason": evaluation.get(variant, {}).get("reason", "No reason provided."),
-                })
-            return results
-        except Exception as fallback_err:
-            logger.error(f"Both Groq and OpenRouter judge scoring failed: {fallback_err}")
-            return [
-                {"score": 5.0, "reason": "Scoring failed. Default score applied."},
-                {"score": 5.0, "reason": "Scoring failed. Default score applied."},
-                {"score": 5.0, "reason": "Scoring failed. Default score applied."},
-            ]
+                results = []
+                for variant in ["A", "B", "C"]:
+                    results.append({
+                        "score": float(evaluation.get(variant, {}).get("score", 5.0)),
+                        "reason": evaluation.get(variant, {}).get("reason", "No reason provided."),
+                    })
+                return results
+            except Exception as fb_err:
+                logger.warning(f"Fallback judge model {slug} failed: {fb_err}")
+
+        logger.error(f"Both Groq and OpenRouter judge scoring failed: {e}")
+        return [
+            {"score": 5.0, "reason": "Scoring failed. Default score applied."},
+            {"score": 5.0, "reason": "Scoring failed. Default score applied."},
+            {"score": 5.0, "reason": "Scoring failed. Default score applied."},
+        ]
 
 
 # ---------------------------------------------------------------------------

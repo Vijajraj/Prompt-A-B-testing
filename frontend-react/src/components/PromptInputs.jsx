@@ -2,13 +2,10 @@ import { useState } from 'react'
 
 const MODEL_OPTIONS = [
   { label: 'Auto-Select Best Free (OpenRouter)', value: 'openrouter/auto' },
-  { label: 'Llama 3.3 70B Instruct (Free)', value: 'meta-llama/llama-3.3-70b-instruct:free' },
-  { label: 'Llama 3.1 8B Instruct (Free)', value: 'meta-llama/llama-3.1-8b-instruct:free' },
-  { label: 'DeepSeek R1 Reasoning (Free)', value: 'deepseek/deepseek-r1:free' },
-  { label: 'Google Gemma 2 9B (Free)', value: 'google/gemma-2-9b-it:free' },
-  { label: 'Qwen 2.5 72B Instruct (Free)', value: 'qwen/qwen-2.5-72b-instruct:free' },
-  { label: 'Mistral 7B Instruct (Free)', value: 'mistralai/mistral-7b-instruct:free' },
-  { label: 'Groq Llama 3.3 70B (Fast Fallback)', value: 'groq/llama-3.3-70b-versatile' },
+  { label: 'NVIDIA Nemotron 3.5 Lightning (Free)', value: 'nvidia/nemotron-3.5-lightning:free' },
+  { label: 'Google Gemma 4 31B (Free)', value: 'google/gemma-4-31b-it:free' },
+  { label: 'Liquid LFM 2.5 2.6B (Free)', value: 'liquid/lfm-2.5-2.6b:free' },
+  { label: 'Groq Llama 3.3 70B (Fast)', value: 'groq/llama-3.3-70b-versatile' },
 ]
 
 // Defined at module scope so React maintains a stable DOM reference & focus on every keystroke
