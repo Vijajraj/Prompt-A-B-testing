@@ -206,51 +206,52 @@ def _escape_braces(text: str) -> str:
     return text.replace("{", "{{").replace("}", "}}")
 
 
-_groq_healthy = True
-
-
-async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
-    """Runs a single prompt variant against the user query with fast 1s circuit breaker and instant OpenRouter fallback."""
-    global _groq_healthy
-    safe_prompt = _escape_braces(prompt_text)
+async def _call_openrouter_model(model_slug: str, safe_prompt: str, query_text: str) -> str:
+    """Helper to invoke a single OpenRouter model with 6s timeout."""
+    fallback_model = ChatOpenAI(
+        model=model_slug,
+        base_url="https://openrouter.ai/api/v1",
+        api_key=OPENROUTER_API_KEY,
+        max_retries=1,
+        request_timeout=6.0,
+    )
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", safe_prompt),
         ("human", "{query}")
     ])
-    
-    # Try Groq with strict 1.0s timeout if circuit breaker is healthy
-    if GROQ_API_KEY and _groq_healthy:
-        try:
-            chain = prompt_template | chat_groq | StrOutputParser()
-            return await asyncio.wait_for(chain.ainvoke({"query": query_text}), timeout=1.0)
-        except Exception as e:
-            _groq_healthy = False
-            logger.warning(f"Groq primary call notice ({e}). Circuit breaker tripped, switching to OpenRouter directly...")
+    chain = prompt_template | fallback_model | StrOutputParser()
+    return await chain.ainvoke({"query": query_text})
 
-    # High-speed OpenRouter fallback (<1s response latency)
-    active_fallbacks = [
-        "nvidia/nemotron-3.5-lightning:free",
-        "liquid/lfm-2.5-2.6b:free",
-        "google/gemma-4-31b-it:free",
+
+async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
+    """Runs a single prompt variant using high-speed concurrent model racing for sub-3s latency."""
+    safe_prompt = _escape_braces(prompt_text)
+
+    # Launch concurrent tasks across top free models
+    tasks = [
+        asyncio.create_task(_call_openrouter_model("nvidia/nemotron-3.5-lightning:free", safe_prompt, query_text)),
+        asyncio.create_task(_call_openrouter_model("liquid/lfm-2.5-2.6b:free", safe_prompt, query_text)),
     ]
-    last_err = None
-    for fallback_slug in active_fallbacks:
-        try:
-            fallback_model = ChatOpenAI(
-                model=fallback_slug,
-                base_url="https://openrouter.ai/api/v1",
-                api_key=OPENROUTER_API_KEY,
-                max_retries=1,
-                request_timeout=6.0,
-            )
-            chain_fallback = prompt_template | fallback_model | StrOutputParser()
-            return await chain_fallback.ainvoke({"query": query_text})
-        except Exception as fb_e:
-            last_err = fb_e
-            logger.warning(f"Fallback model {fallback_slug} notice: {fb_e}")
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
-    logger.error(f"Both Groq and OpenRouter execution failed: {last_err}")
-    raise HTTPException(status_code=500, detail=f"LLM Provider Call Failed: {str(last_err)}")
+    # Return first successful response
+    for task in done:
+        try:
+            res = task.result()
+            for p in pending:
+                p.cancel()
+            return res
+        except Exception:
+            pass
+
+    # Wait for remaining if first errored
+    for task in pending:
+        try:
+            return await task
+        except Exception as e:
+            logger.warning(f"Model race pending task notice: {e}")
+
+    raise HTTPException(status_code=500, detail="All fast LLM models failed to respond.")
 
 
 # ---------------------------------------------------------------------------
