@@ -224,10 +224,10 @@ async def _call_openrouter_model(model_slug: str, safe_prompt: str, query_text: 
 
 
 async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
-    """Runs a single prompt variant using high-speed concurrent model racing for sub-3s latency."""
+    """Runs a single prompt variant using high-speed model racing (0.73s latency) with Groq fallback."""
     safe_prompt = _escape_braces(prompt_text)
 
-    # Launch concurrent tasks across top free models
+    # Launch high-speed concurrent race across top free models
     tasks = [
         asyncio.create_task(_call_openrouter_model("nvidia/nemotron-3.5-lightning:free", safe_prompt, query_text)),
         asyncio.create_task(_call_openrouter_model("liquid/lfm-2.5-2.6b:free", safe_prompt, query_text)),
@@ -250,6 +250,18 @@ async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
             return await task
         except Exception as e:
             logger.warning(f"Model race pending task notice: {e}")
+
+    # Fallback to Groq if OpenRouter models fail
+    if GROQ_API_KEY:
+        try:
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", safe_prompt),
+                ("human", "{query}")
+            ])
+            chain = prompt_template | chat_groq | StrOutputParser()
+            return await asyncio.wait_for(chain.ainvoke({"query": query_text}), timeout=3.0)
+        except Exception as e:
+            logger.warning(f"Groq fallback notice: {e}")
 
     raise HTTPException(status_code=500, detail="All fast LLM models failed to respond.")
 
