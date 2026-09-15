@@ -185,6 +185,9 @@ def _get_fallback_client(model_slug: str = "nvidia/nemotron-3.5-lightning:free")
     )
 
 
+_groq_healthy = True
+
+
 async def score_with_judge(
     query: str,
     prompt_a: str, response_a: str,
@@ -192,6 +195,7 @@ async def score_with_judge(
     prompt_c: str, response_c: str,
 ) -> list[dict]:
     """Score 3 responses using the judge LLM. Returns list of {score, reason}."""
+    global _groq_healthy
     chat_groq = _get_groq_client()
 
     judge_prompt = JUDGE_PROMPT_TEMPLATE.format(
@@ -206,10 +210,10 @@ async def score_with_judge(
         ("human", "{eval_text}")
     ]) | chat_groq | StrOutputParser()
 
-    # Try Groq with strict 1.5s timeout to prevent latency stalls
-    if os.getenv("GROQ_API_KEY"):
+    # Try Groq with strict 1.0s timeout if circuit breaker is healthy
+    if os.getenv("GROQ_API_KEY") and _groq_healthy:
         try:
-            judge_response = await asyncio.wait_for(judge_chain.ainvoke({"eval_text": judge_prompt}), timeout=1.5)
+            judge_response = await asyncio.wait_for(judge_chain.ainvoke({"eval_text": judge_prompt}), timeout=1.0)
             evaluation = _parse_json_safely(judge_response)
 
             results = []
@@ -220,7 +224,8 @@ async def score_with_judge(
                 })
             return results
         except Exception as e:
-            logger.warning(f"Primary Groq judge LLM notice ({e}). Instantly switching to OpenRouter...")
+            _groq_healthy = False
+            logger.warning(f"Primary Groq judge LLM notice ({e}). Circuit breaker tripped, switching to OpenRouter directly...")
         active_slugs = [
             "nvidia/nemotron-3.5-lightning:free",
             "google/gemma-4-31b-it:free",

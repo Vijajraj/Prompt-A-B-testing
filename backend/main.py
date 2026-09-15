@@ -206,21 +206,26 @@ def _escape_braces(text: str) -> str:
     return text.replace("{", "{{").replace("}", "}}")
 
 
+_groq_healthy = True
+
+
 async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
-    """Runs a single prompt variant against the user query with fast 1.5s Groq timeout and instant OpenRouter fallback."""
+    """Runs a single prompt variant against the user query with fast 1s circuit breaker and instant OpenRouter fallback."""
+    global _groq_healthy
     safe_prompt = _escape_braces(prompt_text)
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", safe_prompt),
         ("human", "{query}")
     ])
     
-    # Try Groq with strict 1.5s timeout to prevent latency stalls on invalid or slow keys
-    if GROQ_API_KEY:
+    # Try Groq with strict 1.0s timeout if circuit breaker is healthy
+    if GROQ_API_KEY and _groq_healthy:
         try:
             chain = prompt_template | chat_groq | StrOutputParser()
-            return await asyncio.wait_for(chain.ainvoke({"query": query_text}), timeout=1.5)
+            return await asyncio.wait_for(chain.ainvoke({"query": query_text}), timeout=1.0)
         except Exception as e:
-            logger.warning(f"Groq primary call notice ({e}). Instantly switching to OpenRouter...")
+            _groq_healthy = False
+            logger.warning(f"Groq primary call notice ({e}). Circuit breaker tripped, switching to OpenRouter directly...")
 
     # High-speed OpenRouter fallback (<1s response latency)
     active_fallbacks = [
