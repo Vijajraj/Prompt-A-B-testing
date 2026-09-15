@@ -207,14 +207,30 @@ def _escape_braces(text: str) -> str:
 
 
 async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
-    """Runs a single prompt variant against the user query on Groq."""
+    """Runs a single prompt variant against the user query on Groq with automatic OpenRouter fallback."""
     safe_prompt = _escape_braces(prompt_text)
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", safe_prompt),
         ("human", "{query}")
     ])
-    chain = prompt_template | chat_groq | StrOutputParser()
-    return await chain.ainvoke({"query": query_text})
+    try:
+        chain = prompt_template | chat_groq | StrOutputParser()
+        return await chain.ainvoke({"query": query_text})
+    except Exception as e:
+        logger.warning(f"Groq primary call failed ({e}). Falling back to OpenRouter...")
+        try:
+            fallback_model = ChatOpenAI(
+                model="meta-llama/llama-3.3-70b-instruct:free",
+                base_url="https://openrouter.ai/api/v1",
+                api_key=OPENROUTER_API_KEY,
+                max_retries=1,
+                request_timeout=12.0,
+            )
+            chain_fallback = prompt_template | fallback_model | StrOutputParser()
+            return await chain_fallback.ainvoke({"query": query_text})
+        except Exception as fallback_err:
+            logger.error(f"Both Groq and OpenRouter execution failed: {fallback_err}")
+            raise HTTPException(status_code=500, detail=f"LLM Provider Call Failed: {str(e)}")
 
 
 # ---------------------------------------------------------------------------

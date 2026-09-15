@@ -174,6 +174,17 @@ def _parse_json_safely(text: str):
     raise ValueError(f"Could not parse judge response as JSON: {text}")
 
 
+def _get_fallback_client():
+    """Create an OpenRouter fallback client when Groq is unavailable."""
+    return ChatOpenAI(
+        model="meta-llama/llama-3.3-70b-instruct:free",
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.getenv("OPENROUTER_API_KEY"),
+        max_retries=1,
+        request_timeout=8.0,
+    )
+
+
 async def score_with_judge(
     query: str,
     prompt_a: str, response_a: str,
@@ -207,12 +218,29 @@ async def score_with_judge(
             })
         return results
     except Exception as e:
-        logger.error(f"Judge LLM scoring failed: {e}")
-        return [
-            {"score": 5.0, "reason": "Scoring failed. Default score applied."},
-            {"score": 5.0, "reason": "Scoring failed. Default score applied."},
-            {"score": 5.0, "reason": "Scoring failed. Default score applied."},
-        ]
+        logger.warning(f"Primary Groq judge LLM failed: {e}. Trying OpenRouter fallback...")
+        try:
+            fallback_chain = ChatPromptTemplate.from_messages([
+                ("system", "You are a precise JSON-only evaluator. Return only raw JSON, no explanations, no wrappers."),
+                ("human", "{eval_text}")
+            ]) | _get_fallback_client() | StrOutputParser()
+            judge_response = await fallback_chain.ainvoke({"eval_text": judge_prompt})
+            evaluation = _parse_json_safely(judge_response)
+
+            results = []
+            for variant in ["A", "B", "C"]:
+                results.append({
+                    "score": float(evaluation.get(variant, {}).get("score", 5.0)),
+                    "reason": evaluation.get(variant, {}).get("reason", "No reason provided."),
+                })
+            return results
+        except Exception as fallback_err:
+            logger.error(f"Both Groq and OpenRouter judge scoring failed: {fallback_err}")
+            return [
+                {"score": 5.0, "reason": "Scoring failed. Default score applied."},
+                {"score": 5.0, "reason": "Scoring failed. Default score applied."},
+                {"score": 5.0, "reason": "Scoring failed. Default score applied."},
+            ]
 
 
 # ---------------------------------------------------------------------------
