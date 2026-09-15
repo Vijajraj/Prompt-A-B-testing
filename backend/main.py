@@ -389,13 +389,11 @@ async def promote_winner(req: PromoteRequest):
     requested_model = req.model or PROMOTE_MODEL
     logger.info(f"Requested promotion model: {requested_model}")
 
-    # Try requested model first, then fallback to active free models
+    # Try requested model first, then fallback to proven ultra-fast free models (0.73s latency)
     models_to_try = [
         requested_model,
         "nvidia/nemotron-3.5-lightning:free",
-        "google/gemma-4-31b-it:free",
         "liquid/lfm-2.5-2.6b:free",
-        "groq/llama-3.3-70b-versatile",
     ]
 
     # Handle special groq/ prefix or auto
