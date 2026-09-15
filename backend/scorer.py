@@ -269,7 +269,7 @@ Write one sentence explaining why this score is justified."""
 
 
 async def _explain_single_variant(chat_groq, variant_label: str, predicted_score: float, features: dict) -> str:
-    """Generate 1-sentence explanation from Groq asynchronously with timeout."""
+    """Generate 1-sentence explanation asynchronously with fallback."""
     try:
         explain_text = EXPLAIN_PROMPT.format(
             score=predicted_score,
@@ -279,16 +279,17 @@ async def _explain_single_variant(chat_groq, variant_label: str, predicted_score
             has_bullets="Yes" if features["has_bullets"] else "No",
             readability=features["readability"],
         )
+        client = _get_fallback_client("nvidia/nemotron-3.5-lightning:free") if not _groq_healthy else chat_groq
         explain_chain = ChatPromptTemplate.from_messages([
             ("system", "You are a concise evaluator. Respond with exactly one sentence."),
             ("human", "{text}")
-        ]) | chat_groq | StrOutputParser()
+        ]) | client | StrOutputParser()
 
-        # Set a tight timeout (3 seconds) for the explanation so evaluation is fast
-        reason = await asyncio.wait_for(explain_chain.ainvoke({"text": explain_text}), timeout=3.0)
+        # Set a tight timeout (2 seconds) for the explanation so evaluation is fast
+        reason = await asyncio.wait_for(explain_chain.ainvoke({"text": explain_text}), timeout=2.0)
         return reason.strip()
     except Exception as e:
-        logger.warning(f"Groq explanation skipped/timed out for variant {variant_label}: {e}")
+        logger.warning(f"Explanation skipped/timed out for variant {variant_label}: {e}")
         return f"ML model predicted score {predicted_score}/10 based on text features."
 
 
