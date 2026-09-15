@@ -206,19 +206,21 @@ async def score_with_judge(
         ("human", "{eval_text}")
     ]) | chat_groq | StrOutputParser()
 
-    try:
-        judge_response = await judge_chain.ainvoke({"eval_text": judge_prompt})
-        evaluation = _parse_json_safely(judge_response)
+    # Try Groq with strict 1.5s timeout to prevent latency stalls
+    if os.getenv("GROQ_API_KEY"):
+        try:
+            judge_response = await asyncio.wait_for(judge_chain.ainvoke({"eval_text": judge_prompt}), timeout=1.5)
+            evaluation = _parse_json_safely(judge_response)
 
-        results = []
-        for variant in ["A", "B", "C"]:
-            results.append({
-                "score": float(evaluation.get(variant, {}).get("score", 5.0)),
-                "reason": evaluation.get(variant, {}).get("reason", "No reason provided."),
-            })
-        return results
-    except Exception as e:
-        logger.warning(f"Primary Groq judge LLM failed: {e}. Trying active OpenRouter fallback models...")
+            results = []
+            for variant in ["A", "B", "C"]:
+                results.append({
+                    "score": float(evaluation.get(variant, {}).get("score", 5.0)),
+                    "reason": evaluation.get(variant, {}).get("reason", "No reason provided."),
+                })
+            return results
+        except Exception as e:
+            logger.warning(f"Primary Groq judge LLM notice ({e}). Instantly switching to OpenRouter...")
         active_slugs = [
             "nvidia/nemotron-3.5-lightning:free",
             "google/gemma-4-31b-it:free",

@@ -207,40 +207,45 @@ def _escape_braces(text: str) -> str:
 
 
 async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
-    """Runs a single prompt variant against the user query on Groq with automatic active OpenRouter fallback."""
+    """Runs a single prompt variant against the user query with fast 1.5s Groq timeout and instant OpenRouter fallback."""
     safe_prompt = _escape_braces(prompt_text)
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", safe_prompt),
         ("human", "{query}")
     ])
-    try:
-        chain = prompt_template | chat_groq | StrOutputParser()
-        return await chain.ainvoke({"query": query_text})
-    except Exception as e:
-        logger.warning(f"Groq primary call notice ({e}). Falling back to active OpenRouter free models...")
-        active_fallbacks = [
-            "nvidia/nemotron-3.5-lightning:free",
-            "google/gemma-4-31b-it:free",
-            "liquid/lfm-2.5-2.6b:free",
-        ]
-        last_err = None
-        for fallback_slug in active_fallbacks:
-            try:
-                fallback_model = ChatOpenAI(
-                    model=fallback_slug,
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key=OPENROUTER_API_KEY,
-                    max_retries=1,
-                    request_timeout=12.0,
-                )
-                chain_fallback = prompt_template | fallback_model | StrOutputParser()
-                return await chain_fallback.ainvoke({"query": query_text})
-            except Exception as fb_e:
-                last_err = fb_e
-                logger.warning(f"Fallback model {fallback_slug} notice: {fb_e}")
+    
+    # Try Groq with strict 1.5s timeout to prevent latency stalls on invalid or slow keys
+    if GROQ_API_KEY:
+        try:
+            chain = prompt_template | chat_groq | StrOutputParser()
+            return await asyncio.wait_for(chain.ainvoke({"query": query_text}), timeout=1.5)
+        except Exception as e:
+            logger.warning(f"Groq primary call notice ({e}). Instantly switching to OpenRouter...")
 
-        logger.error(f"Both Groq and OpenRouter execution failed: {last_err or e}")
-        raise HTTPException(status_code=500, detail=f"LLM Provider Call Failed: {str(last_err or e)}")
+    # High-speed OpenRouter fallback (<1s response latency)
+    active_fallbacks = [
+        "nvidia/nemotron-3.5-lightning:free",
+        "liquid/lfm-2.5-2.6b:free",
+        "google/gemma-4-31b-it:free",
+    ]
+    last_err = None
+    for fallback_slug in active_fallbacks:
+        try:
+            fallback_model = ChatOpenAI(
+                model=fallback_slug,
+                base_url="https://openrouter.ai/api/v1",
+                api_key=OPENROUTER_API_KEY,
+                max_retries=1,
+                request_timeout=6.0,
+            )
+            chain_fallback = prompt_template | fallback_model | StrOutputParser()
+            return await chain_fallback.ainvoke({"query": query_text})
+        except Exception as fb_e:
+            last_err = fb_e
+            logger.warning(f"Fallback model {fallback_slug} notice: {fb_e}")
+
+    logger.error(f"Both Groq and OpenRouter execution failed: {last_err}")
+    raise HTTPException(status_code=500, detail=f"LLM Provider Call Failed: {str(last_err)}")
 
 
 # ---------------------------------------------------------------------------
