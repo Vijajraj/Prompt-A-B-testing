@@ -1,7 +1,7 @@
 import React from 'react'
 
 export default function WinnerBanner({ winner, finalOutput, promoting }) {
-  const selectedModel = finalOutput?.model || 'meta-llama/llama-3.3-70b-instruct:free'
+  const selectedModel = finalOutput?.model || 'Auto (Selected Model)'
   const outputText = finalOutput?.final_output || ''
 
   return (
@@ -28,10 +28,15 @@ export default function WinnerBanner({ winner, finalOutput, promoting }) {
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
               Promoting Winner (Var {winner})...
             </span>
-          ) : (
+          ) : outputText ? (
             <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Promotion Complete
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600" />
+              Awaiting Promotion
             </span>
           )}
         </div>
