@@ -207,13 +207,13 @@ def _escape_braces(text: str) -> str:
 
 
 async def _call_openrouter_model(model_slug: str, safe_prompt: str, query_text: str) -> str:
-    """Helper to invoke a single OpenRouter model with 6s timeout."""
+    """Helper to invoke a single OpenRouter model with 12s timeout."""
     fallback_model = ChatOpenAI(
         model=model_slug,
         base_url="https://openrouter.ai/api/v1",
         api_key=OPENROUTER_API_KEY,
         max_retries=1,
-        request_timeout=6.0,
+        request_timeout=12.0,
     )
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", safe_prompt),
@@ -224,10 +224,10 @@ async def _call_openrouter_model(model_slug: str, safe_prompt: str, query_text: 
 
 
 async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
-    """Runs a single prompt variant using high-speed model racing (0.73s latency) with Groq fallback."""
+    """Runs a single prompt variant using high-speed model racing with fallback protection."""
     safe_prompt = _escape_braces(prompt_text)
 
-    # Launch high-speed concurrent race across top free models
+    # Launch high-speed concurrent race across top active free models
     tasks = [
         asyncio.create_task(_call_openrouter_model("nvidia/nemotron-3.5-lightning:free", safe_prompt, query_text)),
         asyncio.create_task(_call_openrouter_model("liquid/lfm-2.5-2.6b:free", safe_prompt, query_text)),
@@ -241,29 +241,25 @@ async def run_prompt_variant(prompt_text: str, query_text: str) -> str:
             for p in pending:
                 p.cancel()
             return res
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"First completed task notice: {e}")
 
-    # Wait for remaining if first errored
+    # Wait for remaining pending task
     for task in pending:
         try:
             return await task
         except Exception as e:
-            logger.warning(f"Model race pending task notice: {e}")
+            logger.warning(f"Pending task notice: {e}")
 
-    # Fallback to Groq if OpenRouter models fail
-    if GROQ_API_KEY:
+    # Sequential backup fallback to ensure 100% reliability
+    backup_slugs = ["nvidia/nemotron-3.5-lightning:free", "liquid/lfm-2.5-2.6b:free"]
+    for slug in backup_slugs:
         try:
-            prompt_template = ChatPromptTemplate.from_messages([
-                ("system", safe_prompt),
-                ("human", "{query}")
-            ])
-            chain = prompt_template | chat_groq | StrOutputParser()
-            return await asyncio.wait_for(chain.ainvoke({"query": query_text}), timeout=3.0)
+            return await _call_openrouter_model(slug, safe_prompt, query_text)
         except Exception as e:
-            logger.warning(f"Groq fallback notice: {e}")
+            logger.warning(f"Backup slug {slug} notice: {e}")
 
-    raise HTTPException(status_code=500, detail="All fast LLM models failed to respond.")
+    raise HTTPException(status_code=500, detail="All LLM model provider attempts failed.")
 
 
 # ---------------------------------------------------------------------------
