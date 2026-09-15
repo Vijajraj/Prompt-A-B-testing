@@ -2,25 +2,33 @@ name: Keep Render Awake (Prevent Cold-Start)
 
 on:
   schedule:
-    # Run every 10 minutes to prevent Render free-tier from sleeping (15-min idle timeout)
-    - cron: '*/10 * * * *'
+    # Run every 5 minutes to guarantee Render free-tier never sleeps (15-min idle timeout)
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render Backend Service
+      - name: Ping Render Backend Gateway
         run: |
           URL="${{ vars.RENDER_URL }}"
           if [ -z "$URL" ]; then
             URL="https://prompt-ab-backend.onrender.com/"
           fi
-          echo "Sending keep-alive ping to: $URL"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
-          echo "Render Backend Response Status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" -eq 200 ]; then
-            echo "Success: Render backend service is active and awake!"
+          echo "Sending high-priority keep-alive ping to: $URL"
+          
+          # Retry up to 3 times with 5s timeout
+          HTTP_STATUS=$(curl -s -L --retry 3 --retry-delay 2 --max-time 15 -o /dev/null -w "%{http_code}" "$URL")
+          echo "Render Root Endpoint Response: $HTTP_STATUS"
+          
+          # Secondary ping to /health
+          HEALTH_URL="${URL%/}/health"
+          HEALTH_STATUS=$(curl -s -L --retry 2 --max-time 15 -o /dev/null -w "%{http_code}" "$HEALTH_URL")
+          echo "Render Health Endpoint Response: $HEALTH_STATUS"
+          
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HEALTH_STATUS" -eq 200 ]; then
+            echo "Success: Render backend service is 100% active and awake!"
           else
-            echo "Notice: Backend responded with status $HTTP_STATUS (waking up or booting)"
+            echo "Notice: Backend responded with status $HTTP_STATUS / $HEALTH_STATUS"
           fi

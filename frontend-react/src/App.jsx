@@ -78,13 +78,33 @@ export default function App() {
     return 'light'
   })
 
-  // Persistent warmup: keep pinging Render until it's alive (up to 60s)
+  // Persistent warmup & active session poller (pings backend every 3 minutes to prevent free-tier sleep)
   useEffect(() => {
+    let intervalId = null
     const warmup = async () => {
       const alive = await waitForBackend(API_URL, setGatewayStatus, 12)
       setBackendReady(alive)
+      if (alive) {
+        // Start recurring 3-minute keep-alive ping while user has app open
+        intervalId = setInterval(async () => {
+          try {
+            const res = await fetch(`${API_URL}/`, { method: 'GET', signal: AbortSignal.timeout(5000) })
+            if (res.ok) {
+              setGatewayStatus('ACTIVE')
+              setBackendReady(true)
+            } else {
+              setGatewayStatus('WARMING UP')
+            }
+          } catch {
+            setGatewayStatus('WARMING UP')
+          }
+        }, 180000) // 3 minutes
+      }
     }
     warmup()
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
   }, [])
 
   useEffect(() => {
