@@ -342,7 +342,7 @@ export default function App() {
                   Prompt Configuration
                 </h2>
                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wide">
-                  Configure prompt overrides and query input
+                  Configure prompt overrides and context input
                 </p>
               </div>
               <PromptInputs onRun={handleRun} loading={loading} promoting={promoting} />

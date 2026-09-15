@@ -85,12 +85,12 @@ export default function PromptInputs({ onRun, loading, promoting }) {
         />
       </div>
 
-      {/* Query input panel */}
+      {/* Context input panel */}
       <EditorBox
         value={query}
         onChange={setQuery}
-        label="User Query"
-        filename="user_message.query"
+        label="Context"
+        filename="user_context.txt"
         rows={4}
         disabled={isDisabled}
       />

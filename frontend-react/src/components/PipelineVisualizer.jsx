@@ -4,7 +4,7 @@ export default function PipelineVisualizer({ currentState, winner, scorerUsed })
   // States: 'idle', 'running-ab', 'evaluating', 'promoting', 'complete'
 
   const steps = [
-    { id: 'query', label: '1. Input Query', desc: 'User Message' },
+    { id: 'query', label: '1. Input Context', desc: 'User Context' },
     { id: 'variants', label: '2. A/B Variants', desc: 'Parallel LLM Runs' },
     { 
       id: 'judge', 

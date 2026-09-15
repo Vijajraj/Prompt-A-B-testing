@@ -94,7 +94,7 @@ export default function RunHistory({ apiUrl }) {
                     <th className="px-5 py-3 font-semibold">Score A</th>
                     <th className="px-5 py-3 font-semibold">Score B</th>
                     <th className="px-5 py-3 font-semibold">Score C</th>
-                    <th className="px-5 py-3 font-semibold">Query Sample</th>
+                    <th className="px-5 py-3 font-semibold">Context Sample</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 text-zinc-700 dark:text-zinc-300">
