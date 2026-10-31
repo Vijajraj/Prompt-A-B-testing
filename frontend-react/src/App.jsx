@@ -12,12 +12,11 @@ const API_URL = import.meta.env.VITE_API_URL || (
     : 'http://127.0.0.1:8000'
 )
 
-async function fetchWithRetry(url, options = {}, retries = 6, backoffMs = 5000) {
+async function fetchWithRetry(url, options = {}, retries = 2, backoffMs = 1000) {
   for (let i = 0; i < retries; i++) {
     try {
       const res = await fetch(url, options)
       if (res.ok) return res
-      // Retry on 502/503/504 (Render cold-start gateway errors)
       if (res.status >= 502 && i < retries - 1) {
         await new Promise((r) => setTimeout(r, backoffMs))
         continue
@@ -33,24 +32,6 @@ async function fetchWithRetry(url, options = {}, retries = 6, backoffMs = 5000) 
   }
 }
 
-async function waitForBackend(url, setStatus, maxAttempts = 12) {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      setStatus(`WAKING UP (${i + 1}/${maxAttempts})`)
-      const res = await fetch(`${url}/`, { method: 'GET', signal: AbortSignal.timeout(8000) })
-      if (res.ok) {
-        setStatus('ACTIVE')
-        return true
-      }
-    } catch {
-      // Server not ready yet
-    }
-    await new Promise((r) => setTimeout(r, 5000))
-  }
-  setStatus('OFFLINE')
-  return false
-}
-
 export default function App() {
   const [results, setResults] = useState(null)
   const [winner, setWinner] = useState(null)
@@ -61,8 +42,8 @@ export default function App() {
   const [error, setError] = useState(null)
   const [logId, setLogId] = useState(null)
   const [scorerUsed, setScorerUsed] = useState(null)
-  const [gatewayStatus, setGatewayStatus] = useState('CHECKING')
-  const [backendReady, setBackendReady] = useState(false)
+  const [gatewayStatus, setGatewayStatus] = useState('ACTIVE')
+  const [backendReady, setBackendReady] = useState(true)
   
   // Tab state: 'ab' or 'mlflow'
   const [activeTab, setActiveTab] = useState('ab')
@@ -78,33 +59,14 @@ export default function App() {
     return 'light'
   })
 
-  // Persistent warmup & active session poller (pings backend every 3 minutes to prevent free-tier sleep)
+  // Background gateway check (non-blocking)
   useEffect(() => {
-    let intervalId = null
-    const warmup = async () => {
-      const alive = await waitForBackend(API_URL, setGatewayStatus, 12)
-      setBackendReady(alive)
-      if (alive) {
-        // Start recurring 3-minute keep-alive ping while user has app open
-        intervalId = setInterval(async () => {
-          try {
-            const res = await fetch(`${API_URL}/`, { method: 'GET', signal: AbortSignal.timeout(5000) })
-            if (res.ok) {
-              setGatewayStatus('ACTIVE')
-              setBackendReady(true)
-            } else {
-              setGatewayStatus('WARMING UP')
-            }
-          } catch {
-            setGatewayStatus('WARMING UP')
-          }
-        }, 180000) // 3 minutes
-      }
-    }
-    warmup()
-    return () => {
-      if (intervalId) clearInterval(intervalId)
-    }
+    fetch(`${API_URL}/`, { method: 'GET', signal: AbortSignal.timeout(5000) })
+      .then((res) => {
+        if (res.ok) setGatewayStatus('ACTIVE')
+        else setGatewayStatus('OFFLINE')
+      })
+      .catch(() => setGatewayStatus('OFFLINE'))
   }, [])
 
   useEffect(() => {
@@ -130,20 +92,8 @@ export default function App() {
     setLoading(true)
     setPipelineState('running-ab')
 
-    // If backend isn't ready yet, wait for it first
-    if (!backendReady) {
-      const alive = await waitForBackend(API_URL, setGatewayStatus, 12)
-      setBackendReady(alive)
-      if (!alive) {
-        setError('Backend service could not be reached after 60 seconds. Please check Render deployment status.')
-        setLoading(false)
-        setPipelineState('idle')
-        return
-      }
-    }
-
     try {
-      // Step 1: Run A/B test on Groq with auto-retry for Render cold-starts
+      // Step 1: Run A/B test
       const runRes = await fetchWithRetry(`${API_URL}/api/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,15 +151,7 @@ export default function App() {
       setFinalOutput(promoteData)
       setPipelineState('complete')
     } catch (err) {
-      const isFetchErr = err.message?.includes('Failed to fetch') || err.name === 'TypeError'
-      if (isFetchErr) {
-        // Auto-trigger warmup and tell user to retry
-        setBackendReady(false)
-        waitForBackend(API_URL, setGatewayStatus, 12).then((alive) => setBackendReady(alive))
-        setError('Backend is waking up from sleep. It will be ready in ~30 seconds. Please retry after the gateway status shows ACTIVE.')
-      } else {
-        setError(err.message)
-      }
+      setError(err.message || 'Request failed. Please check network connection.')
       setPipelineState('idle')
     } finally {
       setLoading(false)
@@ -289,10 +231,10 @@ export default function App() {
             <div className="hidden sm:flex items-center gap-3 font-sans text-[10px]">
               <span className="text-zinc-500">API Gateway:</span>
               <span className={`flex items-center gap-1.5 font-semibold ${
-                gatewayStatus === 'ACTIVE' ? 'text-emerald-500' : 'text-amber-500'
+                gatewayStatus === 'ACTIVE' ? 'text-emerald-500' : 'text-zinc-400'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${
-                  gatewayStatus === 'ACTIVE' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'
+                  gatewayStatus === 'ACTIVE' ? 'bg-emerald-400' : 'bg-zinc-400'
                 }`} />
                 {gatewayStatus}
               </span>
@@ -303,19 +245,6 @@ export default function App() {
 
       {/* Main Workspace Layout */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 relative z-10">
-        {/* Backend waking up banner */}
-        {!backendReady && gatewayStatus !== 'ACTIVE' && (
-          <div className="bg-indigo-50 border border-indigo-200 dark:bg-indigo-950/20 dark:border-indigo-900/50 rounded-2xl p-4 text-indigo-800 dark:text-indigo-300 text-xs font-sans shadow-lg flex items-center gap-3 animate-pulse">
-            <svg className="w-5 h-5 text-indigo-500 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <div className="flex-1">
-              <p className="font-bold">Waking Up Render Backend Service</p>
-              <p className="mt-0.5 opacity-90">Free-tier containers sleep after 15 minutes of inactivity. Automatically reconnecting... ({gatewayStatus})</p>
-            </div>
-          </div>
-        )}
 
         {/* Error notification */}
         {error && (

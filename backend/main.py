@@ -86,18 +86,7 @@ async def _download_model_from_storage():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """App startup/shutdown lifecycle."""
-    # Startup: ensure baseline model & MLflow runs exist
-    meta_path = MODEL_PATH.parent / "metadata.json"
-    if not model_exists() or not meta_path.exists():
-        logger.info("Initializing baseline ML model and MLflow experiment runs on startup...")
-        try:
-            import sys
-            sys.path.insert(0, str(Path(__file__).parent.parent / "ml"))
-            import train
-            train.main()
-        except Exception as e:
-            logger.warning(f"Startup model training notice: {e}")
-
+    # Fast startup: skip heavy synchronous retraining to eliminate cold-start delay
     await _download_model_from_storage()
     load_model()
     yield
